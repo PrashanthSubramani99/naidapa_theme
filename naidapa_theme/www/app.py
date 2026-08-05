@@ -62,8 +62,16 @@ def get_context(context):
     )
 
     try:
-        context["theme_settings"] = frappe.get_cached_doc("Theme Settings")
+        theme_settings = frappe.get_cached_doc("Theme Settings")
+        context["theme_settings"] = theme_settings
+        context["app_logo"] = (
+            theme_settings.get("sidebar_logo")
+            or frappe.get_website_settings("app_logo")
+            or boot.get("app_logo_url")
+            or "/files/dr-codex-logo.png"
+        )
     except Exception:
         context["theme_settings"] = frappe._dict()
+        context["app_logo"] = "/files/dr-codex-logo.png"
 
     return context

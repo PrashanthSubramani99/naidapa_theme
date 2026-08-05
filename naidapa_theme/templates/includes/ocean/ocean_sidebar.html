@@ -1,9 +1,20 @@
 <nav class="vertical-sidebar">
     <div class="app-logo">
-        <a class="logo d-inline-block" href="#">
-            <img alt="#" src="{{ frappe.utils.get_url() }}/assets/naidapa_theme/images/logo.png" style="height: auto"
-                width="initial !important">
+        <a class="logo d-inline-block" href="/app" title="{{ app_name }}">
+            {% if theme_settings and theme_settings.sidebar_logo %}
+            <img alt="{{ app_name }}" src="{{ theme_settings.sidebar_logo }}">
+            {% elif app_logo %}
+            <img alt="{{ app_name }}" src="{{ app_logo }}">
+            {% else %}
+            <img alt="{{ app_name }}" src="/files/dr-codex-logo.png">
+            {% endif %}
         </a>
+    </div>
+
+    <div class="nav-profile-wrapper text-center py-2">
+        <div class="user-avatar-circle" title="User Profile">
+            <iconify-icon icon="line-md:account" width="22" height="22"></iconify-icon>
+        </div>
     </div>
 
     <div class="app-nav" id="app-simple-bar" data-simplebar>
@@ -13,20 +24,40 @@
             </li>
 
             {% for page in pages %}
+            {% set page_lower = page.name | lower %}
+            {% set icon_code = page.icon_name or 'grid-3' %}
+            {% if page.child_workspace and page.child_workspace|length > 0 %}
             <li>
-                <a href="/app/{{ page.name | lower | replace(' ', '-') }}">
-                    {% if page.custom_animated_icon %}
+                <a aria-expanded="false" data-bs-toggle="collapse" href="#ws-sub-{{ loop.index }}" class="collapsed">
                     <span class="sidebar-item-icon">
-                        <iconify-icon icon="line-md:{{ page.custom_animated_icon }}"></iconify-icon>
+                        <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
                     </span>
-                    {% else %}
+                    <span class="sidebar-item-label">{{ page.title }}</span>
+                </a>
+                <ul class="collapse" id="ws-sub-{{ loop.index }}">
+                    {% for child in page.child_workspace %}
+                    {% set child_icon = child.icon_name or 'grid-3' %}
+                    <li>
+                        <a href="/app/{{ child.name | lower | replace(' ', '-') }}">
+                            <span class="sidebar-item-icon">
+                                <iconify-icon icon="line-md:{{ child_icon }}"></iconify-icon>
+                            </span>
+                            <span class="sidebar-item-label">{{ child.title }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% else %}
+            <li class="no-sub">
+                <a href="/app/{{ page_lower | replace(' ', '-') }}" title="{{ page.title }}">
                     <span class="sidebar-item-icon">
-                        <iconify-icon icon="line-md:arrow-small-right"></iconify-icon>
+                        <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
                     </span>
-                    {% endif %}
-                    <span class="sidebar-item-label">{{ page.title }}<span>
+                    <span class="sidebar-item-label">{{ page.title }}</span>
                 </a>
             </li>
+            {% endif %}
             {% endfor %}
         </ul>
     </div>

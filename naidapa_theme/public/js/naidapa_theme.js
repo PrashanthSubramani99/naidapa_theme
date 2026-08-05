@@ -5,6 +5,10 @@
 
     naidapa_theme.setup = function () {
         $('body').addClass('naidapa-theme-active');
+        if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
+            $('body').addClass('sidebar-menu-opened');
+            $('.vertical-sidebar').addClass('semi-nav');
+        }
         naidapa_theme.run_patches();
     };
 
@@ -65,8 +69,6 @@
             'thumbs-up', 'tiktok', 'trash', 'twitter', 'upload-loop', 'user', 'video', 'watch', 'youtube'
         ];
 
-
-
         const d = new frappe.ui.Dialog({
             title: __('Select Animated Icon'),
             fields: [
@@ -110,7 +112,31 @@
         render_grid();
     };
 
+    naidapa_theme.update_sidebar_logo = function () {
+        const logo_url = (frappe.boot && frappe.boot.sidebar_logo) || "/files/dr-codex-logo.png";
+        const $appLogo = $('.vertical-sidebar .app-logo');
+
+        if ($appLogo.length) {
+            let $img = $appLogo.find('img');
+            if ($img.length === 0) {
+                $appLogo.html(`
+                    <a class="logo d-inline-block" href="/app" title="Home">
+                        <img src="${logo_url}" alt="Logo" style="max-height: 42px; max-width: 180px; object-fit: contain;">
+                    </a>
+                `);
+            } else if ($img.attr('src') !== logo_url) {
+                $img.attr('src', logo_url);
+            }
+        }
+    };
+
     naidapa_theme.run_patches = function () {
+        if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
+            $('body').addClass('sidebar-menu-opened');
+            $('.vertical-sidebar').addClass('semi-nav');
+        }
+        naidapa_theme.remove_native_elements();
+        naidapa_theme.update_sidebar_logo();
         naidapa_theme.highlight_active_route();
         naidapa_theme.mutate_workspace_container();
         naidapa_theme.mutate_custom_elements();
@@ -126,8 +152,11 @@
     };
 
     naidapa_theme.inject_navbar_toggle = function () {
+        const isCollapsed = $('body').hasClass('sidebar-menu-opened');
+        const iconName = isCollapsed ? 'line-md:menu-fold-right' : 'line-md:menu-fold-left';
+
         if ($('.header-toggle').length === 0) {
-            const toggle_html = '<span class="header-toggle" style="margin-right: 15px; cursor: pointer; display: flex; align-items: center; font-size: 22px; color: var(--text-primary);"> <iconify-icon icon="line-md:menu-fold-left"></iconify-icon></span>';
+            const toggle_html = `<span class="header-toggle" style="margin-right: 15px; cursor: pointer; display: flex; align-items: center; font-size: 22px; color: var(--text-primary);"><iconify-icon icon="${iconName}"></iconify-icon></span>`;
             $('.navbar-brand').before(toggle_html);
 
             // Bind click event to toggle sidebar
@@ -140,12 +169,16 @@
                     $body.removeClass('sidebar-menu-opened');
                     $sidebar.removeClass('semi-nav');
                     $icon.attr('icon', 'line-md:menu-fold-left');
+                    localStorage.setItem('naidapa_sidebar_collapsed', 'false');
                 } else {
                     $body.addClass('sidebar-menu-opened');
                     $sidebar.addClass('semi-nav');
                     $icon.attr('icon', 'line-md:menu-fold-right');
+                    localStorage.setItem('naidapa_sidebar_collapsed', 'true');
                 }
             });
+        } else {
+            $('.header-toggle iconify-icon').attr('icon', iconName);
         }
     };
 
@@ -162,26 +195,24 @@
     };
 
     naidapa_theme.highlight_active_route = function () {
-        const current_route = window.location.pathname;
+        const current_path = window.location.pathname.toLowerCase();
+        const route_str = (typeof frappe !== 'undefined' && frappe.get_route_str ? frappe.get_route_str() : '').toLowerCase();
+
         $('.main-nav > li').removeClass('active');
 
-        // Exact matching
-        $(`.main-nav > li > a[href="${current_route}"]`).parent().addClass('active');
+        $('.main-nav > li > a').each(function () {
+            let href = ($(this).attr('href') || '').toLowerCase();
+            let page_slug = href.replace('/app/', '').replace('/', '');
 
-        // Fuzzy matching
-        if (current_route && current_route !== "/app") {
-            $('.main-nav > li > a').each(function () {
-                let href = $(this).attr('href');
-                if (href && current_route.startsWith(href) && href !== "/app") {
-                    $(this).parent().addClass('active');
-                }
-            });
-        }
+            if (href && (current_path === href || (route_str && route_str.includes(page_slug)))) {
+                $(this).parent().addClass('active');
+            }
+        });
     };
 
-    //naidapa_theme.remove_native_elements = function () {
-    //    $('.layout-side-section, .sidebar-toggle-btn').remove();
-    //};
+    naidapa_theme.remove_native_elements = function () {
+        $('.layout-side-section, .sidebar-toggle-btn, .desk-sidebar').hide();
+    };
 
     naidapa_theme.mutate_workspace_container = function () {
         const selectors = [

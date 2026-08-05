@@ -108,6 +108,8 @@ portal_menu_items = [
 # Installation
 # ------------
 
+extend_bootinfo = "naidapa_theme.events.sidebar.boot_session"
+
 # before_install = "naidapa_theme.install.before_install"
 after_install = "naidapa_theme.install.after_install"
 after_migrate = "naidapa_theme.install.after_migrate"
