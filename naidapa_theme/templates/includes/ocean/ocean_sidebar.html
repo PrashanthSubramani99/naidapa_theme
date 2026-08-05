@@ -11,54 +11,82 @@
         </a>
     </div>
 
-    <div class="nav-profile-wrapper text-center py-2">
-        <div class="user-avatar-circle" title="User Profile">
-            <iconify-icon icon="line-md:account" width="22" height="22"></iconify-icon>
-        </div>
-    </div>
-
     <div class="app-nav" id="app-simple-bar" data-simplebar>
         <ul class="main-nav p-0 mt-2">
-            <li class="menu-title">
-                <span>Workspace</span>
-            </li>
+            {% if menu_data and menu_data.custom_menu %}
+                {% for item in menu_data.items_list %}
+                {% if item.is_group %}
+                <li class="sidebar-group-item">
+                    <a aria-expanded="true" data-bs-toggle="collapse" data-bs-target="#grp-sub-{{ loop.index }}" href="javascript:void(0);" onclick="naidapa_theme.toggle_collapse(this, event); return false;" class="sidebar-group-header">
+                        <span class="sidebar-item-icon">
+                            <iconify-icon icon="line-md:{{ item.group_icon or 'grid-3' }}"></iconify-icon>
+                        </span>
+                        <span class="sidebar-item-label">{{ item.group_name }}</span>
+                    </a>
+                    <ul class="collapse sidebar-group-box show" id="grp-sub-{{ loop.index }}">
+                        {% for sub in item.sub_items %}
+                        <li class="sidebar-sub-item">
+                            <a href="{{ sub.route }}" class="sidebar-sub-link">
+                                <span class="sidebar-item-icon">
+                                    <iconify-icon icon="line-md:{{ sub.icon_name or 'grid-3' }}"></iconify-icon>
+                                </span>
+                                <span class="sidebar-item-label">{{ sub.title }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% else %}
+                <li class="no-sub">
+                    <a href="{{ item.route }}" title="{{ item.title }}">
+                        <span class="sidebar-item-icon">
+                            <iconify-icon icon="line-md:{{ item.icon_name or 'grid-3' }}"></iconify-icon>
+                        </span>
+                        <span class="sidebar-item-label">{{ item.title }}</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% endfor %}
 
-            {% for page in pages %}
-            {% set page_lower = page.name | lower %}
-            {% set icon_code = page.icon_name or 'grid-3' %}
-            {% if page.child_workspace and page.child_workspace|length > 0 %}
-            <li>
-                <a aria-expanded="false" data-bs-toggle="collapse" href="#ws-sub-{{ loop.index }}" class="collapsed">
-                    <span class="sidebar-item-icon">
-                        <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
-                    </span>
-                    <span class="sidebar-item-label">{{ page.title }}</span>
-                </a>
-                <ul class="collapse" id="ws-sub-{{ loop.index }}">
-                    {% for child in page.child_workspace %}
-                    {% set child_icon = child.icon_name or 'grid-3' %}
-                    <li>
-                        <a href="/app/{{ child.name | lower | replace(' ', '-') }}">
-                            <span class="sidebar-item-icon">
-                                <iconify-icon icon="line-md:{{ child_icon }}"></iconify-icon>
-                            </span>
-                            <span class="sidebar-item-label">{{ child.title }}</span>
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </li>
             {% else %}
-            <li class="no-sub">
-                <a href="/app/{{ page_lower | replace(' ', '-') }}" title="{{ page.title }}">
-                    <span class="sidebar-item-icon">
-                        <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
-                    </span>
-                    <span class="sidebar-item-label">{{ page.title }}</span>
-                </a>
-            </li>
+                {% set pages_list = menu_data.pages if (menu_data and menu_data.pages is defined) else pages %}
+                {% for page in pages_list %}
+                {% set page_lower = page.name | lower %}
+                {% set icon_code = page.icon_name or 'grid-3' %}
+                {% if page.child_workspace and page.child_workspace|length > 0 %}
+                <li class="sidebar-group-item">
+                    <a aria-expanded="true" data-bs-toggle="collapse" data-bs-target="#ws-sub-{{ loop.index }}" href="javascript:void(0);" onclick="naidapa_theme.toggle_collapse(this, event); return false;" class="sidebar-group-header">
+                        <span class="sidebar-item-icon">
+                            <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
+                        </span>
+                        <span class="sidebar-item-label">{{ page.title }}</span>
+                    </a>
+                    <ul class="collapse sidebar-group-box show" id="ws-sub-{{ loop.index }}">
+                        {% for child in page.child_workspace %}
+                        {% set child_icon = child.icon_name or 'grid-3' %}
+                        <li class="sidebar-sub-item">
+                            <a href="/app/{{ child.name | lower | replace(' ', '-') }}" class="sidebar-sub-link">
+                                <span class="sidebar-item-icon">
+                                    <iconify-icon icon="line-md:{{ child_icon }}"></iconify-icon>
+                                </span>
+                                <span class="sidebar-item-label">{{ child.title }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% else %}
+                <li class="no-sub">
+                    <a href="/app/{{ page_lower | replace(' ', '-') }}" title="{{ page.title }}">
+                        <span class="sidebar-item-icon">
+                            <iconify-icon icon="line-md:{{ icon_code }}"></iconify-icon>
+                        </span>
+                        <span class="sidebar-item-label">{{ page.title }}</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% endfor %}
             {% endif %}
-            {% endfor %}
         </ul>
     </div>
 </nav>

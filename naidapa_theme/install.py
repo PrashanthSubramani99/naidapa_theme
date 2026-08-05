@@ -18,6 +18,23 @@ ICON_MAP = [
     (["integ", "api"], "grid-3"),
 ]
 
+DEFAULT_WORKSPACE_ORDERS = [
+    {"idx": 1, "workspace": "Home", "workspace_label": "Home"},
+    {"idx": 2, "workspace": "Accounting", "workspace_group": "Finance", "workspace_label": "Accounting"},
+    {"idx": 3, "workspace": "Payables", "workspace_group": "Finance", "workspace_label": "Payables"},
+    {"idx": 4, "workspace": "Receivables", "workspace_group": "Finance", "workspace_label": "Receivables"},
+    {"idx": 5, "workspace": "Financial Reports", "workspace_group": "Finance", "workspace_label": "Financial Reports"},
+    {"idx": 6, "workspace": "Buying", "workspace_label": "Buying"},
+    {"idx": 7, "workspace": "Selling", "workspace_label": "Selling"},
+    {"idx": 8, "workspace": "Stock", "workspace_group": "Inventory", "workspace_label": "Stock"},
+    {"idx": 9, "workspace": "Assets", "workspace_group": "Inventory", "workspace_label": "Assets"},
+    {"idx": 10, "workspace": "Manufacturing", "workspace_label": "Manufacturing"},
+    {"idx": 11, "workspace": "Quality", "workspace_label": "Quality"},
+    {"idx": 12, "workspace": "Users", "workspace_label": "Users"},
+    {"idx": 13, "workspace": "Projects", "workspace_label": "Projects"},
+    {"idx": 14, "workspace": "Support", "workspace_label": "Support"},
+]
+
 def get_default_icon_for_title(title_or_name):
     val = (title_or_name or "").lower()
     for keywords, icon_name in ICON_MAP:
@@ -39,6 +56,38 @@ def setup_workspace_animated_icons():
     except Exception as e:
         frappe.logger().error(f"Error setting up workspace animated icons: {e}")
 
+def setup_default_workspace_orders():
+    try:
+        # Create Workspace Groups if missing
+        groups = set()
+        for item in DEFAULT_WORKSPACE_ORDERS:
+            grp = item.get("workspace_group")
+            if grp:
+                groups.add(grp)
+
+        for grp_name in groups:
+            if not frappe.db.exists("Workspace Group", grp_name):
+                frappe.get_doc({
+                    "doctype": "Workspace Group",
+                    "group_name": grp_name
+                }).insert(ignore_permissions=True)
+
+        theme_settings = frappe.get_single("Theme Settings")
+        current_orders = theme_settings.get("workspace_order") or []
+
+        if not current_orders:
+            for item in DEFAULT_WORKSPACE_ORDERS:
+                theme_settings.append("workspace_order", {
+                    "workspace": item.get("workspace"),
+                    "workspace_group": item.get("workspace_group"),
+                    "workspace_label": item.get("workspace_label"),
+                })
+            theme_settings.save(ignore_permissions=True)
+            frappe.db.commit()
+
+    except Exception as e:
+        frappe.logger().error(f"Error setting up default workspace order: {e}")
+
 def after_install():
     create_custom_fields({
         "Workspace": [
@@ -52,6 +101,7 @@ def after_install():
         ]
     })
     setup_workspace_animated_icons()
-    
+    setup_default_workspace_orders()
+
 def after_migrate():
     after_install()

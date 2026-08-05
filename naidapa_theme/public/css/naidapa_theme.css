@@ -455,6 +455,119 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
     }
 }
 
+/* Bordered Group Box Container & Submenu Styling */
+.vertical-sidebar .main-nav > li.sidebar-group-item {
+    margin: 4px 0;
+}
+
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header,
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header[aria-expanded="true"],
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header:not(.collapsed) {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: var(--text-primary, #2d3748) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+    padding: 10px 14px !important;
+}
+
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header .sidebar-item-label,
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header[aria-expanded="true"] .sidebar-item-label {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header:hover {
+    background: rgba(0, 0, 0, 0.03) !important;
+    color: #0f626a !important;
+}
+
+/* Fix Group Header Chevron Arrow Vertical Position */
+nav .app-nav .main-nav > li:not(.menu-title) > a,
+.vertical-sidebar .main-nav > li > a {
+    position: relative !important;
+}
+
+nav .app-nav .main-nav > li:not(.menu-title) > a::after,
+.vertical-sidebar .main-nav > li > a::after,
+.vertical-sidebar .main-nav > li > a[aria-expanded="true"]::after,
+.vertical-sidebar .main-nav > li > a[aria-expanded="false"]::after {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    right: 1.25rem !important;
+    margin: 0 !important;
+}
+
+/* Bordered Group Box Container */
+.vertical-sidebar .main-nav ul.sidebar-group-box {
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+    margin: 6px 12px 10px 12px !important;
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    list-style: none !important;
+}
+
+/* Submenu items inside group box */
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item {
+    margin: 2px 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link {
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: var(--text-color, #4a5568) !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+/* Hide any pseudo arrows/bullets on submenu items */
+.vertical-sidebar .main-nav ul.sidebar-group-box li::before,
+.vertical-sidebar .main-nav ul.sidebar-group-box li::after,
+.vertical-sidebar .main-nav ul.sidebar-group-box li a::before,
+.vertical-sidebar .main-nav ul.sidebar-group-box li a::after {
+    display: none !important;
+    content: "" !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link .sidebar-item-icon {
+    margin-right: 8px !important;
+    font-size: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* ONLY Submenu item gets hover & active design! */
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link:hover {
+    background-color: rgba(15, 98, 106, 0.1) !important;
+    color: #0f626a !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item.active a.sidebar-sub-link,
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link.active {
+    background-color: #0f626a !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(15, 98, 106, 0.25) !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item.active a.sidebar-sub-link iconify-icon,
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link.active iconify-icon {
+    color: #ffffff !important;
+}
+
 /* Application Header overrides */
 .header-main {
     background-color: var(--surface-color);

@@ -57,7 +57,8 @@ def get_context(context):
             "app_name": (
                 frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or "Frappe"
             ),
-            "pages": get_desktop_pages(),
+            "menu_data": get_desktop_pages(),
+            "pages": (get_desktop_pages().get("pages", []) if isinstance(get_desktop_pages(), dict) else get_desktop_pages()),
         }
     )
 

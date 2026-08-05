@@ -35,8 +35,63 @@ def resolve_icon(title_or_name, custom_icon=None):
 
 @frappe.whitelist()
 def get_desktop_pages():
+    try:
+        theme_settings = frappe.get_cached_doc("Theme Settings")
+        workspace_orders = theme_settings.get("workspace_order") or []
+    except Exception:
+        workspace_orders = []
+
+    if workspace_orders:
+        menu_items = []
+        groups_map = {}
+
+        # Sort by row idx to strictly preserve Theme Settings row order
+        sorted_orders = sorted(workspace_orders, key=lambda x: int(x.idx or 0))
+
+        for row in sorted_orders:
+            if not row.workspace:
+                continue
+            ws_title = row.workspace_label or frappe.db.get_value("Workspace", row.workspace, "title") or row.workspace
+            ws_icon = resolve_icon(ws_title, row.icon or frappe.db.get_value("Workspace", row.workspace, "custom_animated_icon"))
+            ws_name = row.workspace
+            ws_route = ws_name.lower().replace(" ", "-")
+
+            item_data = {
+                "name": ws_name,
+                "title": ws_title,
+                "route": f"/app/{ws_route}",
+                "icon_name": ws_icon,
+            }
+
+            group_name = (row.workspace_group or "").strip()
+
+            if group_name:
+                if group_name in groups_map:
+                    groups_map[group_name]["sub_items"].append(item_data)
+                else:
+                    group_item = {
+                        "is_group": True,
+                        "group_name": group_name,
+                        "group_slug": group_name.lower().replace(" ", "-"),
+                        "group_icon": resolve_icon(group_name),
+                        "sub_items": [item_data]
+                    }
+                    groups_map[group_name] = group_item
+                    menu_items.append(group_item)
+            else:
+                menu_items.append({
+                    "is_group": False,
+                    "name": ws_name,
+                    "title": ws_title,
+                    "route": f"/app/{ws_route}",
+                    "icon_name": ws_icon
+                })
+
+        return {"custom_menu": True, "items_list": menu_items}
+
+    # Default Fallback: Standard Desktop Sidebar Pages
     pages_data = get_workspace_sidebar_items()
-    pages = pages_data.get("pages")
+    pages = pages_data.get("pages", [])
     
     hidden_workspaces = []
     pages = [page for page in pages if page.get("title") not in hidden_workspaces]
@@ -50,9 +105,11 @@ def get_desktop_pages():
         row["icon_name"] = resolve_icon(row.get("title") or row.get("name"), custom_icon)
         
         row_json = json.dumps(row, default=str)
-        desktop_page = get_desktop_page(row_json)
-        
-        row["cards"] = desktop_page.get("cards")
+        try:
+            desktop_page = get_desktop_page(row_json)
+            row["cards"] = desktop_page.get("cards")
+        except Exception:
+            row["cards"] = []
         
         children = [d for d in original_pages if d.get('parent_page') == row.get("name")]
         for child in children:
@@ -62,7 +119,7 @@ def get_desktop_pages():
             
         row["child_workspace"] = children
         
-    return parent_pages
+    return {"custom_menu": False, "pages": parent_pages}
 
 def boot_session(bootinfo):
     try:

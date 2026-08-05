@@ -130,6 +130,44 @@
         }
     };
 
+    naidapa_theme.toggle_collapse = function (el, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) {
+                event.stopImmediatePropagation();
+            }
+        }
+
+        const $link = $(el);
+        let $target = $link.next('ul.collapse');
+
+        if ($target.length === 0) {
+            const targetId = $link.attr('data-bs-target') || $link.attr('href');
+            if (targetId && targetId.startsWith('#')) {
+                $target = $(targetId);
+            }
+        }
+
+        if ($target.length) {
+            const isShown = $target.hasClass('show') || $target.is(':visible');
+            if (isShown) {
+                $target.removeClass('show').slideUp(200);
+                $link.addClass('collapsed').attr('aria-expanded', 'false');
+            } else {
+                $target.addClass('show').slideDown(200);
+                $link.removeClass('collapsed').attr('aria-expanded', 'true');
+            }
+        }
+        return false;
+    };
+
+    naidapa_theme.bind_collapse_events = function () {
+        $(document).off('click.naidapa_collapse', '.vertical-sidebar [data-bs-toggle="collapse"]').on('click.naidapa_collapse', '.vertical-sidebar [data-bs-toggle="collapse"]', function (e) {
+            naidapa_theme.toggle_collapse(this, e);
+        });
+    };
+
     naidapa_theme.run_patches = function () {
         if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
             $('body').addClass('sidebar-menu-opened');
@@ -137,6 +175,7 @@
         }
         naidapa_theme.remove_native_elements();
         naidapa_theme.update_sidebar_logo();
+        naidapa_theme.bind_collapse_events();
         naidapa_theme.highlight_active_route();
         naidapa_theme.mutate_workspace_container();
         naidapa_theme.mutate_custom_elements();
@@ -198,14 +237,28 @@
         const current_path = window.location.pathname.toLowerCase();
         const route_str = (typeof frappe !== 'undefined' && frappe.get_route_str ? frappe.get_route_str() : '').toLowerCase();
 
-        $('.main-nav > li').removeClass('active');
+        $('.main-nav li').removeClass('active');
+        $('.main-nav a').removeClass('active');
 
-        $('.main-nav > li > a').each(function () {
+        $('.main-nav a').each(function () {
             let href = ($(this).attr('href') || '').toLowerCase();
+            if (!href || href.startsWith('javascript')) return;
+
             let page_slug = href.replace('/app/', '').replace('/', '');
 
-            if (href && (current_path === href || (route_str && route_str.includes(page_slug)))) {
-                $(this).parent().addClass('active');
+            if (current_path === href || (page_slug && route_str && route_str.includes(page_slug))) {
+                $(this).addClass('active');
+                $(this).closest('li').addClass('active');
+
+                // If active item is inside a collapsible group box, expand the group automatically
+                const $groupBox = $(this).closest('ul.collapse');
+                if ($groupBox.length) {
+                    $groupBox.addClass('show').show();
+                    const $groupHeader = $groupBox.prev('a.sidebar-group-header');
+                    if ($groupHeader.length) {
+                        $groupHeader.removeClass('collapsed').attr('aria-expanded', 'true');
+                    }
+                }
             }
         });
     };
