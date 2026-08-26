@@ -291,9 +291,16 @@ div>footer {
   transition: var(--app-transition);
 }
 
+/* Secondary buttons (e.g. dialog "Edit Full Form", "Cancel") read as a
+   less-prominent action next to a solid-fill primary button. A solid dark
+   fill here reads as equally (or more) prominent than primary and, at
+   ki-secondary's actual gray value, close to black -- so this uses the
+   lighter "tinted outline" pattern instead: near-transparent teal-tinted
+   background, a soft border, dark text. */
 .btn-secondary {
-  background-color: rgba(var(--ki-secondary), 1) !important;
-  border: 1px solid rgba(var(--ki-secondary), 1) !important;
+  background-color: rgba(var(--ki-primary), 0.08) !important;
+  border: 1px solid rgba(var(--ki-primary), 0.35) !important;
+  color: var(--font-color) !important;
 }
 
 .btn-secondary:hover,
@@ -302,11 +309,17 @@ div>footer {
 .btn-secondary.show,
 .btn-secondary:checked,
 .btn-secondary:focus,
-.btn-secondary:focus-visible,
-.btn-secondary.disabled {
-  background-color: rgba(var(--ki-secondary), 1) !important;
-  border-color: rgba(var(--ki-secondary), 1) !important;
+.btn-secondary:focus-visible {
+  background-color: rgba(var(--ki-primary), 0.16) !important;
+  border-color: rgba(var(--ki-primary), 0.5) !important;
+  color: var(--font-color) !important;
   transition: var(--app-transition);
+}
+
+.btn-secondary.disabled {
+  background-color: rgba(var(--ki-secondary), 0.15) !important;
+  border-color: rgba(var(--ki-secondary), 0.15) !important;
+  color: rgba(var(--ki-secondary), 0.6) !important;
 }
 
 .btn-danger {
