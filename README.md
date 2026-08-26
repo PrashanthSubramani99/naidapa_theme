@@ -3,6 +3,33 @@
   <p><i>A beautifully crafted, modern glassmorphic theme for Frappe and ERPNext</i></p>
 </div>
 
+## Infinity ERP project setup (this fork)
+
+This fork customizes the upstream theme for the Infinity ERP project: fixed
+a logout-crashing boot bug, sidebar route-matching bugs, and button-color
+CSS bugs; wired Theme Settings' color pickers to actually work; and ships
+the project's sidebar menu (Masters/Sales/Purchases/Inventory/Finance/HR/
+Projects/Reports/Administration), brand colors, and logo as **fixtures** so
+a fresh install reproduces them automatically — see `git log` for the
+individual fixes.
+
+To reproduce this exact setup on a new bench (frappe `version-15` +
+erpnext `version-15`, matching the site this was built against):
+
+```bash
+cd frappe-bench
+bench get-app hrms --branch version-15
+bench get-app https://github.com/PrashanthSubramani99/naidapa_theme
+bench --site <sitename> install-app hrms
+bench --site <sitename> install-app naidapa_theme
+bench --site <sitename> migrate   # loads the fixtures: sidebar, colors, logo
+bench build --app naidapa_theme
+bench restart   # or bench start
+```
+
+No manual re-upload of logos or re-creation of the sidebar menu is needed —
+`bench migrate` restores all of it from `naidapa_theme/fixtures/`.
+
 <hr />
 
 ## 📖 Overview
