@@ -9,7 +9,48 @@
             $('body').addClass('sidebar-menu-opened');
             $('.vertical-sidebar').addClass('semi-nav');
         }
+        naidapa_theme.apply_theme_colors();
         naidapa_theme.run_patches();
+    };
+
+    // Theme Settings ships primary_color/secondary_color color pickers, but
+    // nothing ever read them -- the CSS hardcodes --primary in
+    // naidapa_theme.css instead, so changing the fields in the UI had no
+    // visible effect. This applies them as CSS custom property overrides on
+    // :root, which every rule that uses var(--primary)/var(--primary-color)
+    // already picks up.
+    naidapa_theme.apply_theme_colors = function () {
+        const theme_settings = (frappe.boot && frappe.boot.theme_settings) || {};
+        const primary = theme_settings.primary_color;
+        const secondary = theme_settings.secondary_color;
+        if (!primary && !secondary) return;
+
+        const hex_to_rgb = (hex) => {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : null;
+        };
+        const shade = (hex, percent) => {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!m) return hex;
+            const clamp = (v) => Math.max(0, Math.min(255, v));
+            const adjust = (c) => clamp(Math.round(parseInt(c, 16) * (1 + percent)));
+            return `#${[m[1], m[2], m[3]].map((c) => adjust(c).toString(16).padStart(2, '0')).join('')}`;
+        };
+
+        let css = ':root {';
+        if (primary) {
+            css += `--primary: ${primary}; --primary-color: ${primary}; --primary-hover: ${shade(primary, -0.2)}; --ki-primary: ${hex_to_rgb(primary) || '15, 98, 106'};`;
+        }
+        if (secondary) {
+            css += `--secondary-color: ${secondary}; --ki-secondary: ${hex_to_rgb(secondary) || '98, 98, 98'};`;
+        }
+        css += '}';
+
+        let $style = $('#naidapa-theme-color-overrides');
+        if (!$style.length) {
+            $style = $('<style id="naidapa-theme-color-overrides"></style>').appendTo('head');
+        }
+        $style.text(css);
     };
 
     naidapa_theme.setup_icon_picker = function () {
