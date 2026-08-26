@@ -896,3 +896,140 @@ footer .btn-primary {
     max-width: 100% !important;
     width: 100% !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* App picker (/apps) — constrain logo images inside the 60px box.            */
+/* Frappe's own apps.css sizes .app-logo but never clips/constrains the       */
+/* <img> inside it, so full-resolution app logos overflow onto the label.     */
+/* -------------------------------------------------------------------------- */
+.apps-container .app-icon .app-logo {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.apps-container .app-icon .app-logo img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Login page — scoped to body[data-path="login"] only, never leaks to other  */
+/* website pages.                                                             */
+/* -------------------------------------------------------------------------- */
+body[data-path="login"] {
+    background: linear-gradient(135deg, var(--np-bg) 0%, var(--np-bg-alt) 100%) !important;
+    min-height: 100vh;
+}
+
+body[data-path="login"] .page_content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - var(--np-navbar-height));
+    padding: 40px 16px;
+}
+
+body[data-path="login"] .for-login,
+body[data-path="login"] .for-signup,
+body[data-path="login"] .for-forgot,
+body[data-path="login"] .for-email-login,
+body[data-path="login"] .for-login-with-email-link {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+body[data-path="login"] .page-card {
+    background: var(--np-surface) !important;
+    border: 1px solid var(--np-border);
+    border-radius: var(--np-radius-lg);
+    box-shadow: var(--np-shadow-card);
+    padding: 8px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+body[data-path="login"] .page-card-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 32px 24px 16px;
+    border: none;
+}
+
+body[data-path="login"] .page-card-head .app-logo {
+    width: auto;
+    max-width: 180px;
+    max-height: 72px;
+    object-fit: contain;
+    margin-bottom: 16px;
+}
+
+body[data-path="login"] .page-card-head h4 {
+    color: var(--np-text);
+    font-weight: 600;
+    font-size: 18px;
+    margin: 0;
+}
+
+body[data-path="login"] .page-card-body {
+    padding: 8px 24px 16px;
+}
+
+body[data-path="login"] .page-card-body .form-control {
+    border: 1px solid var(--np-border);
+    border-radius: var(--np-radius-md);
+    padding: 10px 14px;
+    font-size: 14px;
+    transition: var(--np-transition);
+}
+
+body[data-path="login"] .page-card-body .form-control:focus {
+    border-color: var(--np-primary);
+    box-shadow: 0 0 0 3px var(--np-primary-light);
+}
+
+body[data-path="login"] .page-card-actions {
+    padding: 8px 24px 32px;
+}
+
+body[data-path="login"] .btn-login,
+body[data-path="login"] .btn-forgot,
+body[data-path="login"] .btn-login-with-email-link {
+    background: var(--np-primary) !important;
+    border-color: var(--np-primary) !important;
+    border-radius: var(--np-radius-md);
+    padding: 10px 16px;
+    font-weight: 600;
+    transition: var(--np-transition);
+}
+
+body[data-path="login"] .btn-login:hover,
+body[data-path="login"] .btn-forgot:hover,
+body[data-path="login"] .btn-login-with-email-link:hover {
+    background: var(--np-primary-hover) !important;
+    border-color: var(--np-primary-hover) !important;
+}
+
+body[data-path="login"] .forgot-password-message a,
+body[data-path="login"] .sign-up-message a {
+    color: var(--np-primary);
+    font-weight: 500;
+}
+
+body[data-path="login"] .social-login-buttons .btn-login-option {
+    border-radius: var(--np-radius-md);
+    border: 1px solid var(--np-border);
+}
+
+/* Login page footer is empty (no footer content configured in Website
+   Settings) and just leaves a blank bar under the card -- drop it. */
+body[data-path="login"] footer {
+    display: none !important;
+}

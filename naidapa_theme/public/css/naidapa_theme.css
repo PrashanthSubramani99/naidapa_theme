@@ -288,7 +288,17 @@ nav.vertical-sidebar {
 
 body.naidapa-theme-active nav.vertical-sidebar .app-logo,
 nav.vertical-sidebar .app-logo {
-    margin-top: 0 !important;
+    margin-top: 16px !important;
+    border-bottom: 1px solid #cfe0dd !important;
+    padding-bottom: 12px !important;
+}
+
+nav.vertical-sidebar .app-nav .main-nav {
+    margin-top: 20px !important;
+}
+
+nav.vertical-sidebar .app-nav .main-nav > li {
+    margin-bottom: 6px !important;
 }
 
 body.naidapa-theme-active .sticky-top {
@@ -403,6 +413,15 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
         display: none !important;
     }
 
+    /* Icon-only collapsed state: hide expanded group sub-item lists entirely
+       (they were staying open, stacking loose sub-icons under the group icon)
+       -- only the top-level group icons should show until hover expands the
+       sidebar back to full width. */
+    nav.semi-nav:not(:hover) .sidebar-group-box,
+    body.sidebar-menu-opened nav.vertical-sidebar:not(:hover) .sidebar-group-box {
+        display: none !important;
+    }
+
     .app-wrapper .semi-nav .app-nav .main-nav li.active > a {
         background-color: #0f626a !important;
         color: #ffffff !important;
@@ -472,6 +491,20 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
     padding: 10px 14px !important;
 }
 
+/* When a sub-item inside a collapsed/expanded group is the active route,
+   tint the parent group header's text/icon with the accent color too (not
+   a full pill highlight like the sub-item itself gets) so the active
+   section reads clearly at a glance. */
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header.has-active-child,
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header.has-active-child .sidebar-item-label {
+    color: var(--primary) !important;
+}
+
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header.has-active-child .sidebar-item-icon,
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header.has-active-child iconify-icon {
+    color: var(--primary) !important;
+}
+
 .vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header .sidebar-item-label,
 .vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header[aria-expanded="true"] .sidebar-item-label {
     font-size: 14px !important;
@@ -480,7 +513,7 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
 
 .vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header:hover {
     background: rgba(0, 0, 0, 0.03) !important;
-    color: #0f626a !important;
+    color: var(--primary) !important;
 }
 
 /* Fix Group Header Chevron Arrow Vertical Position */
@@ -1336,4 +1369,134 @@ span.sidebar-item-label {
 .page-head .btn {
     height: 32px !important;
     justify-content: center !important;
+}
+
+/* --- NAVBAR SEARCH: DROP THE ICON --- */
+/* The global ".awesomplete>input" padding above (8px 14px) collapses the
+   36px left padding Frappe's own navbar.scss reserves for the absolutely
+   positioned .search-icon, so the icon sat on top of the placeholder text.
+   Simplest fix: just remove the icon from this one input instead of
+   re-carving out space for it. */
+.search-bar .search-icon {
+    display: none !important;
+}
+
+.search-bar .awesomplete>input,
+.search-bar input.form-control {
+    padding-left: 14px !important;
+}
+
+/* --- MANDATORY FIELD INPUTS: LIGHT YELLOW BACKGROUND --- */
+/* Frappe only adds a "reqd" class to a mandatory field's <label>, not its
+   input -- there's no class on the input/wrapper itself to hook. :has() lets
+   us reach from the label back up to the shared .form-group and then back
+   down into the input, without needing any JS. Covers the main form grid,
+   dialogs, quick-entry, and the child-table (grid row) editing form -- all
+   of which share this same control markup. */
+.form-group:has(> .clearfix > .control-label.reqd) input.form-control,
+.form-group:has(> .clearfix > .control-label.reqd) select.form-control,
+.form-group:has(> .clearfix > .control-label.reqd) textarea.form-control {
+    background-color: #FFF3CD !important;
+}
+
+/* --- MODERN FORM/DOCUMENT TABS --- */
+/* Targets Frappe's own .form-tabs-list > ul.form-tabs > li.nav-item > button.nav-link
+   markup (frappe/public/js/frappe/form/tab.js) -- pill-style active state
+   instead of the default underlined Bootstrap look. */
+.form-tabs-list {
+    border-bottom: 1px solid var(--border_color) !important;
+    padding-bottom: 4px;
+    margin-top: 12px;
+}
+
+.form-tabs {
+    gap: 4px;
+    border-bottom: none !important;
+}
+
+.form-tabs .nav-item {
+    margin-bottom: 0 !important;
+}
+
+.form-tabs .nav-link {
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 7px 16px !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    color: var(--font-light-color) !important;
+    background: transparent !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.form-tabs .nav-link:hover {
+    background: rgba(15, 98, 106, 0.08) !important;
+    color: #0f626a !important;
+}
+
+.form-tabs .nav-link.active {
+    background: #0f626a !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 98, 106, 0.35);
+}
+
+/* --- SIDEBAR CONTRAST --- */
+/* ki_style.css sets the sidebar to solid white (rgba(--ki-white, 1)), which
+   reads as flat/washed-out against the equally-white main content area.
+   Give it a soft tinted background instead, and darken the base nav-item
+   text a touch so it holds up against the new bg. Active items are already
+   solid teal (#0f626a) with white text elsewhere in this file -- untouched,
+   they contrast fine against either background. */
+nav.vertical-sidebar {
+    background-color: #e6f1ef !important;
+    box-shadow: 2px 0 10px rgba(15, 98, 106, 0.12) !important;
+    border-right: 1px solid #cfe0dd !important;
+    position: relative !important;
+    z-index: 20 !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box {
+    background-color: #ffffff !important;
+}
+
+.vertical-sidebar .main-nav > li.sidebar-group-item > a.sidebar-group-header {
+    color: #2b3236 !important;
+}
+
+.vertical-sidebar .main-nav ul.sidebar-group-box li.sidebar-sub-item a.sidebar-sub-link:not(.active) {
+    color: #4a5560 !important;
+}
+
+/* Workspace "Edit" / "New" footer buttons were rendering as plain default
+   Bootstrap pills (white bg, black border) that clash with the theme's teal
+   accent used everywhere else. Restyle to match. */
+.workspace-footer .btn-edit-workspace,
+.workspace-footer .btn-new-workspace {
+    border: 1px solid #0f626a !important;
+    border-radius: 6px !important;
+    color: #0f626a !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 98, 106, 0.15) !important;
+}
+
+.workspace-footer .btn-edit-workspace svg use,
+.workspace-footer .btn-new-workspace svg use {
+    fill: #0f626a !important;
+}
+
+.workspace-footer .btn-edit-workspace:hover,
+.workspace-footer .btn-new-workspace:hover {
+    background-color: #0f626a !important;
+    color: #ffffff !important;
+}
+
+.workspace-footer .btn-edit-workspace:hover svg use,
+.workspace-footer .btn-new-workspace:hover svg use {
+    fill: #ffffff !important;
+}
+
+/* Match the top navbar to the sidebar's mint-green tint for consistency. */
+.app-wrapper .app-content header.header-main,
+.header-main {
+    background-color: #e6f1ef !important;
 }

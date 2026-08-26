@@ -51,15 +51,28 @@ def get_desktop_pages():
         for row in sorted_orders:
             if not row.workspace:
                 continue
-            ws_title = row.workspace_label or frappe.db.get_value("Workspace", row.workspace, "title") or row.workspace
-            ws_icon = resolve_icon(ws_title, row.icon or frappe.db.get_value("Workspace", row.workspace, "custom_animated_icon"))
-            ws_name = row.workspace
-            ws_route = ws_name.lower().replace(" ", "-")
+            # A row's "workspace" can carry an optional "?field=value" filter
+            # suffix (e.g. "Stock Entry?purpose=Material Receipt") so several
+            # sidebar items can share one DocType/Workspace but each still get
+            # their own distinct, filtered destination instead of colliding
+            # on the exact same unfiltered list.
+            ws_name, _, ws_query = row.workspace.partition("?")
+            ws_title = row.workspace_label or frappe.db.get_value("Workspace", ws_name, "title") or ws_name
+            ws_icon = resolve_icon(ws_title, row.icon or frappe.db.get_value("Workspace", ws_name, "custom_animated_icon"))
+            if "/" in ws_name:
+                # Already a full route (e.g. "query-report/Profit and Loss
+                # Statement" or "dashboard-view/Accounts") -- Report and
+                # Dashboard names are case-sensitive and these routes aren't
+                # single-segment doctype/workspace slugs, so skip the
+                # lowercase+hyphenate slugification below and use it as-is.
+                ws_route = ws_name
+            else:
+                ws_route = ws_name.lower().replace(" ", "-")
 
             item_data = {
                 "name": ws_name,
                 "title": ws_title,
-                "route": f"/app/{ws_route}",
+                "route": f"/app/{ws_route}" + (f"?{ws_query}" if ws_query else ""),
                 "icon_name": ws_icon,
             }
 

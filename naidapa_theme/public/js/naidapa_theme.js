@@ -169,19 +169,37 @@
     };
 
     naidapa_theme.run_patches = function () {
-        if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
-            $('body').addClass('sidebar-menu-opened');
-            $('.vertical-sidebar').addClass('semi-nav');
-        }
-        naidapa_theme.remove_native_elements();
-        naidapa_theme.update_sidebar_logo();
-        naidapa_theme.bind_collapse_events();
-        naidapa_theme.highlight_active_route();
-        naidapa_theme.mutate_workspace_container();
-        naidapa_theme.mutate_custom_elements();
-        naidapa_theme.inject_navbar_toggle();
-        naidapa_theme.mutate_number_cards();
-        naidapa_theme.setup_icon_picker();
+        // This runs from inside patched frappe.views[*].make() methods, which
+        // Desk itself calls synchronously while booting (frappe.Application's
+        // constructor). An uncaught throw here propagates out of that
+        // constructor and aborts `frappe.app = new frappe.Application()`,
+        // silently leaving frappe.app as an empty stub for the rest of the
+        // session (e.g. frappe.app.logout stops existing). Each step is
+        // isolated so one broken patch can't take down Desk boot.
+        const steps = [
+            () => {
+                if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
+                    $('body').addClass('sidebar-menu-opened');
+                    $('.vertical-sidebar').addClass('semi-nav');
+                }
+            },
+            naidapa_theme.remove_native_elements,
+            naidapa_theme.update_sidebar_logo,
+            naidapa_theme.bind_collapse_events,
+            naidapa_theme.highlight_active_route,
+            naidapa_theme.mutate_workspace_container,
+            naidapa_theme.mutate_custom_elements,
+            naidapa_theme.inject_navbar_toggle,
+            naidapa_theme.mutate_number_cards,
+            naidapa_theme.setup_icon_picker,
+        ];
+        steps.forEach((step) => {
+            try {
+                step();
+            } catch (e) {
+                console.error('naidapa_theme: patch step failed', e);
+            }
+        });
     };
 
     naidapa_theme.mutate_number_cards = function () {
@@ -235,18 +253,63 @@
 
     naidapa_theme.highlight_active_route = function () {
         const current_path = window.location.pathname.toLowerCase();
-        const route_str = (typeof frappe !== 'undefined' && frappe.get_route_str ? frappe.get_route_str() : '').toLowerCase();
+        // frappe.get_route_str() reads frappe.router.current_route, which isn't
+        // assigned yet the first time a view's make() runs during Desk startup
+        // (this function is called from patched view classes below, so it can
+        // fire before frappe.router exists) -- reading it then throws and, since
+        // that first call happens synchronously inside frappe.Application's
+        // constructor, aborts `frappe.app = new frappe.Application()` entirely,
+        // leaving frappe.app as an empty stub with no .logout().
+        const route_str = (
+            typeof frappe !== 'undefined' && frappe.router && frappe.router.current_route && frappe.get_route_str
+                ? frappe.get_route_str()
+                : ''
+        ).toLowerCase();
 
         $('.main-nav li').removeClass('active');
         $('.main-nav a').removeClass('active');
+        $('.main-nav a.sidebar-group-header').removeClass('has-active-child');
+
+        // route_str segments, normalized the same way page_slug is (spaces ->
+        // hyphens), so "request for quotation" becomes "request-for-quotation"
+        // and can only exact-match a link's own slug -- not merely contain it
+        // as a substring. A plain route_str.includes(page_slug) check used to
+        // live here and wrongly lit up e.g. the "/app/quotation" link whenever
+        // the current route was "Request for Quotation" (its route string ends
+        // in the word "quotation", so it "contained" every shorter slug too).
+        const route_segments = route_str.split('/').map((s) => s.trim().replace(/\s+/g, '-'));
 
         $('.main-nav a').each(function () {
-            let href = ($(this).attr('href') || '').toLowerCase();
-            if (!href || href.startsWith('javascript')) return;
+            let raw_href = $(this).attr('href') || '';
+            if (!raw_href || raw_href.startsWith('javascript')) return;
 
-            let page_slug = href.replace('/app/', '').replace('/', '');
+            // Split off any "?field=value" filter suffix (see
+            // naidapa_theme/events/sidebar.py) separately: once Frappe's SPA
+            // router takes over, the address bar doesn't reliably keep query
+            // strings in sync with the current list view's filters, so path
+            // and filter state need to be checked against different sources
+            // of truth -- the URL for the path, frappe.route_options (the
+            // list view's actual live filter state) for the filter.
+            let [href_path, href_query] = raw_href.toLowerCase().split('?');
+            let page_slug = href_path.replace('/app/', '').replace('/', '');
 
-            if (current_path === href || (page_slug && route_str && route_str.includes(page_slug))) {
+            let path_matches = current_path === href_path || (page_slug && route_segments.includes(page_slug));
+            if (!path_matches) return;
+
+            let filters_match = true;
+            if (href_query) {
+                const params = new URLSearchParams(href_query);
+                const route_options = (typeof frappe !== 'undefined' && frappe.route_options) || {};
+                for (const [key, value] of params) {
+                    const active_value = route_options[key];
+                    if (String(active_value || '').toLowerCase() !== value.toLowerCase()) {
+                        filters_match = false;
+                        break;
+                    }
+                }
+            }
+
+            if (filters_match) {
                 $(this).addClass('active');
                 $(this).closest('li').addClass('active');
 
@@ -257,6 +320,7 @@
                     const $groupHeader = $groupBox.prev('a.sidebar-group-header');
                     if ($groupHeader.length) {
                         $groupHeader.removeClass('collapsed').attr('aria-expanded', 'true');
+                        $groupHeader.addClass('has-active-child');
                     }
                 }
             }
@@ -333,8 +397,23 @@
         };
     });
 
+    // Debounced via rAF: running the full run_patches() pass synchronously on
+    // every single DOM mutation (e.g. a frappe.confirm()/Dialog modal being
+    // inserted) can race with the browser's own click handling on the node
+    // that triggered the mutation, dropping the click. Coalescing bursts of
+    // mutations into a single patch pass on the next frame avoids that.
+    let patch_scheduled = false;
+    const schedule_patches = function () {
+        if (patch_scheduled) return;
+        patch_scheduled = true;
+        requestAnimationFrame(() => {
+            patch_scheduled = false;
+            naidapa_theme.run_patches();
+        });
+    };
+
     const observer = new MutationObserver(() => {
-        naidapa_theme.run_patches();
+        schedule_patches();
     });
 
     $(document).ready(() => {
