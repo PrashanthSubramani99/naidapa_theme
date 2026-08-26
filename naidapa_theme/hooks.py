@@ -5,6 +5,19 @@ app_description = "A Frappe Theme"
 app_email = "iammusabutt@gmail.com"
 app_license = "mit"
 
+# Fixtures
+# ------------------
+# Config that would otherwise only live in this site's database (sidebar
+# menu structure, branding/colors, workspace grouping) so a fresh
+# `bench --site X install-app naidapa_theme && bench migrate` reproduces it
+# instead of it only existing on this one machine.
+fixtures = [
+    {"doctype": "Workspace Group"},
+    {"doctype": "Theme Settings"},
+    {"doctype": "Website Settings"},
+    {"doctype": "Navbar Settings"},
+]
+
 # Apps
 # ------------------
 

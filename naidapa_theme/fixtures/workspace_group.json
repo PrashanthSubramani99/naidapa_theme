@@ -1,0 +1,65 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Inventory",
+  "modified": "2026-08-26 10:33:46.953041",
+  "name": "Inventory"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Finance",
+  "modified": "2026-08-26 10:33:46.954394",
+  "name": "Finance"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Masters",
+  "modified": "2026-08-26 10:36:06.216993",
+  "name": "Masters"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Sales",
+  "modified": "2026-08-26 10:36:06.373460",
+  "name": "Sales"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Purchases",
+  "modified": "2026-08-26 10:36:06.375109",
+  "name": "Purchases"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "HR",
+  "modified": "2026-08-26 10:36:06.378288",
+  "name": "HR"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Projects",
+  "modified": "2026-08-26 10:36:06.379833",
+  "name": "Projects"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Reports",
+  "modified": "2026-08-26 10:36:06.381062",
+  "name": "Reports"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workspace Group",
+  "group_name": "Administration",
+  "modified": "2026-08-26 10:36:06.382443",
+  "name": "Administration"
+ }
+]

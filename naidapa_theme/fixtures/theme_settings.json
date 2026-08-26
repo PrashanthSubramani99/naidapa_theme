@@ -1,0 +1,318 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Theme Settings",
+  "favicon_image": "/assets/naidapa_theme/images/naidapa-logo.png",
+  "fonts_setting": [],
+  "login_description": null,
+  "login_tag": null,
+  "modified": "2026-08-26 11:07:36.484860",
+  "name": "Theme Settings",
+  "primary_color": "#0f626a",
+  "secondary_color": "#626262",
+  "short_notes": null,
+  "sidebar_logo": "/assets/naidapa_theme/images/naidapa-logo.png",
+  "sidebar_text": null,
+  "skin": "ocean",
+  "title": "Naidapa ERP",
+  "workspace_order": [
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Customer",
+    "workspace_group": "Masters",
+    "workspace_label": "Customers"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Supplier",
+    "workspace_group": "Masters",
+    "workspace_label": "Suppliers"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Item",
+    "workspace_group": "Masters",
+    "workspace_label": "Items"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Quotation",
+    "workspace_group": "Sales",
+    "workspace_label": "Sales Quotations"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Sales Order",
+    "workspace_group": "Sales",
+    "workspace_label": "Sales Orders"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Sales Invoice",
+    "workspace_group": "Sales",
+    "workspace_label": "Sales Invoices"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Payment Entry?payment_type=Receive",
+    "workspace_group": "Sales",
+    "workspace_label": "Sales Receipts"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Material Request",
+    "workspace_group": "Purchases",
+    "workspace_label": "Requisitions"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Request for Quotation",
+    "workspace_group": "Purchases",
+    "workspace_label": "RFQs"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Purchase Order",
+    "workspace_group": "Purchases",
+    "workspace_label": "Purchase Orders"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Purchase Invoice",
+    "workspace_group": "Purchases",
+    "workspace_label": "Purchase Invoice"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Stock Entry",
+    "workspace_group": "Inventory",
+    "workspace_label": "Stock"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Purchase Receipt",
+    "workspace_group": "Inventory",
+    "workspace_label": "Receipts"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Stock Entry?purpose=Material Issue",
+    "workspace_group": "Inventory",
+    "workspace_label": "Issues"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Stock Entry?purpose=Material Transfer",
+    "workspace_group": "Inventory",
+    "workspace_label": "Transfers"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "query-report/Accounts Receivable",
+    "workspace_group": "Finance",
+    "workspace_label": "Accounts Receivable"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "query-report/Accounts Payable",
+    "workspace_group": "Finance",
+    "workspace_label": "Accounts Payable"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Bank Account",
+    "workspace_group": "Finance",
+    "workspace_label": "Cash & Bank"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "query-report/General Ledger",
+    "workspace_group": "Finance",
+    "workspace_label": "General Ledger"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Employee",
+    "workspace_group": "HR",
+    "workspace_label": "Employees"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Attendance",
+    "workspace_group": "HR",
+    "workspace_label": "Attendance"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Leave Application",
+    "workspace_group": "HR",
+    "workspace_label": "Leave"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Payroll Entry",
+    "workspace_group": "HR",
+    "workspace_label": "Payroll"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Project",
+    "workspace_group": "Projects",
+    "workspace_label": "Projects"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Task",
+    "workspace_group": "Projects",
+    "workspace_label": "Tasks"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Timesheet",
+    "workspace_group": "Projects",
+    "workspace_label": "Timesheets"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "query-report/Stock Balance",
+    "workspace_group": "Reports",
+    "workspace_label": "Operational"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "query-report/Profit and Loss Statement",
+    "workspace_group": "Reports",
+    "workspace_label": "Financial"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "dashboard-view/Accounts",
+    "workspace_group": "Reports",
+    "workspace_label": "Dashboards"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "User",
+    "workspace_group": "Administration",
+    "workspace_label": "Users"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Role",
+    "workspace_group": "Administration",
+    "workspace_label": "Roles"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "Workflow",
+    "workspace_group": "Administration",
+    "workspace_label": "Workflow"
+   },
+   {
+    "icon": null,
+    "parent": "Theme Settings",
+    "parentfield": "workspace_order",
+    "parenttype": "Theme Settings",
+    "workspace": "System Settings",
+    "workspace_group": "Administration",
+    "workspace_label": "Settings"
+   }
+  ]
+ }
+]
