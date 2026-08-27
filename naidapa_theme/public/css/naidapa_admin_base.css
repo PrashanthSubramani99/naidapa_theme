@@ -345,6 +345,20 @@ div>footer {
   border: 1px solid rgba(var(--ki-info), 1) !important;
 }
 
+/* Frappe core reuses .btn-info as the "currently selected" indicator on the
+   list-view page-size buttons (20/100/500/2500) -- see base_list.js, it adds
+   .btn-info purely to mark the active choice, not to convey "info" meaning.
+   Left as the theme's info-blue, the selected page-size button clashes with
+   every other "active/selected" indicator in naidapa_theme, which is teal.
+   Scoped to the paging area only, so real info buttons elsewhere keep
+   --ki-info blue. */
+.list-paging-area .btn-paging.btn-info,
+.footnote-area .btn-paging.btn-info {
+  background-color: rgba(var(--ki-primary), 1) !important;
+  border-color: rgba(var(--ki-primary), 1) !important;
+  color: rgba(var(--ki-white), 1) !important;
+}
+
 .btn-info:hover,
 .btn-info:active,
 .btn-info.active,

@@ -45,7 +45,7 @@ fixtures = [
 # reloads until that window lapses or the URL itself changes. Bump the "?v="
 # query string below on every edit to naidapa_theme.css/js so browsers are
 # forced to fetch the new content instead of trusting their cached copy.
-NAIDAPA_ASSET_VERSION = "36"
+NAIDAPA_ASSET_VERSION = "37"
 app_include_css = [
     "/assets/naidapa_theme/vendor/simplebar/simplebar.css",
     f"/assets/naidapa_theme/css/naidapa_admin_base.css?v={NAIDAPA_ASSET_VERSION}",
