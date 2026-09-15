@@ -6,6 +6,7 @@ import frappe
 import frappe.sessions
 from frappe import _
 from frappe.utils.jinja_globals import is_rtl
+from naidapa_theme.branding import get_favicon, get_logo
 from naidapa_theme.events.sidebar import get_desktop_pages
 
 SCRIPT_TAG_PATTERN = re.compile(r"\<script[^<]*\</script\>")
@@ -62,17 +63,23 @@ def get_context(context):
         }
     )
 
+    # The Navbar Settings logo is the master switch for both the app logo and the
+    # favicon; see naidapa_theme/branding.py. The old fallback here was
+    # "/files/dr-codex-logo.png", which does not exist on this site.
+    context["app_logo"] = get_logo()
+    context["favicon"] = get_favicon()
+
     try:
-        theme_settings = frappe.get_cached_doc("Theme Settings")
-        context["theme_settings"] = theme_settings
-        context["app_logo"] = (
-            theme_settings.get("sidebar_logo")
-            or frappe.get_website_settings("app_logo")
-            or boot.get("app_logo_url")
-            or "/files/dr-codex-logo.png"
-        )
+        context["theme_settings"] = frappe.get_cached_doc("Theme Settings")
     except Exception:
         context["theme_settings"] = frappe._dict()
-        context["app_logo"] = "/files/dr-codex-logo.png"
+
+    # Fixed footer (templates/includes/ocean/main.html): a single centred line.
+    # The text comes from Frappe's own footer setting -- Website Settings ->
+    # Copyright -- so it stays editable in the UI rather than being hardcoded
+    # here. The year is resolved per request, so the notice rolls over on its own
+    # every January with no code change.
+    context["footer_copyright"] = (frappe.get_website_settings("copyright") or "").strip()
+    context["current_year"] = frappe.utils.now_datetime().year
 
     return context

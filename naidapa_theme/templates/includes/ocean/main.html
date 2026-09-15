@@ -7,4 +7,16 @@
         </header>
         <div id="body"></div>
     </div>
+
+    {# Fixed application footer. It must stay a DIRECT CHILD OF A <div> because the
+       fixed positioning lives in a `div > footer` rule in naidapa_admin_base.css,
+       which already reserves the sidebar gutter. Copy comes from Frappe's own
+       footer setting (Website Settings -> Copyright); the year is rendered per
+       request, so it rolls over on its own each January. #}
+    <footer class="naidapa-app-footer">
+        <div class="naidapa-footer-note">
+            {%- if footer_copyright %}{{ footer_copyright }} {% endif -%}
+            &copy; {{ current_year }}
+        </div>
+    </footer>
 </div>

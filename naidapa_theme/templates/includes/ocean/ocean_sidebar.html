@@ -1,12 +1,15 @@
 <nav class="vertical-sidebar">
     <div class="app-logo">
         <a class="logo d-inline-block" href="/app" title="{{ app_name }}">
-            {% if theme_settings and theme_settings.sidebar_logo %}
-            <img alt="{{ app_name }}" src="{{ theme_settings.sidebar_logo }}">
-            {% elif app_logo %}
+            {# app_logo already resolves Navbar Settings first, then Theme Settings;
+               checking theme_settings.sidebar_logo first here is what made the
+               Navbar Settings logo look like it did nothing. #}
+            {% if app_logo %}
             <img alt="{{ app_name }}" src="{{ app_logo }}">
+            {% elif theme_settings and theme_settings.sidebar_logo %}
+            <img alt="{{ app_name }}" src="{{ theme_settings.sidebar_logo }}">
             {% else %}
-            <img alt="{{ app_name }}" src="/files/dr-codex-logo.png">
+            <img alt="{{ app_name }}" src="/assets/frappe/images/frappe-framework-logo.svg">
             {% endif %}
         </a>
     </div>

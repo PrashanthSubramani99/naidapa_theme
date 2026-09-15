@@ -3,12 +3,68 @@
 
     frappe.provide("naidapa_theme");
 
+    // Sidebar open/closed preference.
+    //
+    // Sidebar open/closed preference.
+    //
+    // DEFAULTS TO COLLAPSED. The rail ships as a compact icon strip; the user
+    // expands it by clicking the toggle.
+    //
+    // A naming trap worth understanding before editing this, because it caused a
+    // real inversion bug: the CSS class that means COLLAPSED is called
+    // `sidebar-menu-opened` / `semi-nav`. From naidapa_theme.css:
+    //
+    //   nav.semi-nav, body.sidebar-menu-opened nav.vertical-sidebar { width: 64px }
+    //   nav.semi-nav:not(:hover) .menu-title { display: none }
+    //
+    // So "sidebar-menu-opened" is the COMPACT state, despite reading like the
+    // opposite. `apply_sidebar_state()` below is the single place that maps intent
+    // ("is_open") onto those classes; do not set them anywhere else.
+    //
+    // KEY IS VERSIONED, on purpose. Earlier revisions wrote a preference whose
+    // meaning was inverted, under both `naidapa_sidebar_collapsed` and then
+    // `naidapa_sidebar_open`. A browser that toggled the rail under either would
+    // carry a stale value that silently defeats the default -- the app would look
+    // permanently expanded however many times it was refreshed. `_v2` starts from
+    // a clean slate, and the old keys are removed so they cannot resurface if the
+    // reading logic is ever changed back.
+    const SIDEBAR_PREF_KEY = 'naidapa_sidebar_open_v2';
+
+    naidapa_theme.sidebar_is_open = function () {
+        return localStorage.getItem(SIDEBAR_PREF_KEY) === 'true';
+    };
+
+    naidapa_theme.forget_legacy_sidebar_prefs = function () {
+        ['naidapa_sidebar_open', 'naidapa_sidebar_collapsed'].forEach(function (key) {
+            if (localStorage.getItem(key) !== null) {
+                localStorage.removeItem(key);
+                console.info('naidapa_theme: removed stale sidebar preference "' + key + '"');
+            }
+        });
+    };
+
+    // Maps INTENT onto the framework's (inverted) class names, and keeps the
+    // toggle icon in step. `is_open === true`  -> full-width rail with labels.
+    // `is_open === false` -> 80px compact rail.
+    naidapa_theme.apply_sidebar_state = function (is_open) {
+        const collapsed = !is_open;
+        $('body').toggleClass('sidebar-menu-opened', collapsed);
+        $('.vertical-sidebar').toggleClass('semi-nav', collapsed);
+        naidapa_theme.sync_sidebar_toggle_icon(is_open);
+    };
+
+    naidapa_theme.set_sidebar_open = function (is_open) {
+        localStorage.setItem(SIDEBAR_PREF_KEY, is_open ? 'true' : 'false');
+        naidapa_theme.apply_sidebar_state(is_open);
+    };
+
     naidapa_theme.setup = function () {
         $('body').addClass('naidapa-theme-active');
-        if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
-            $('body').addClass('sidebar-menu-opened');
-            $('.vertical-sidebar').addClass('semi-nav');
-        }
+        // One-time cleanup of pre-versioned keys whose semantics were inverted.
+        naidapa_theme.forget_legacy_sidebar_prefs();
+        // apply_sidebar_state, NOT set_sidebar_open: a first visit has no stored
+        // preference and must stay collapsed without writing one.
+        naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open());
         naidapa_theme.apply_theme_colors();
         naidapa_theme.run_patches();
     };
@@ -154,7 +210,13 @@
     };
 
     naidapa_theme.update_sidebar_logo = function () {
-        const logo_url = (frappe.boot && frappe.boot.sidebar_logo) || "/files/dr-codex-logo.png";
+        // frappe.boot.sidebar_logo is resolved server-side by
+        // naidapa_theme.branding.get_logo(), so this stays in step with the
+        // <img> that ocean_sidebar.html rendered. The old fallback here was
+        // "/files/dr-codex-logo.png", which does not exist on this site.
+        const logo_url =
+            (frappe.boot && frappe.boot.sidebar_logo) ||
+            "/assets/frappe/images/frappe-framework-logo.svg";
         const $appLogo = $('.vertical-sidebar .app-logo');
 
         if ($appLogo.length) {
@@ -218,18 +280,17 @@
         // session (e.g. frappe.app.logout stops existing). Each step is
         // isolated so one broken patch can't take down Desk boot.
         const steps = [
-            () => {
-                if (localStorage.getItem('naidapa_sidebar_collapsed') === 'true') {
-                    $('body').addClass('sidebar-menu-opened');
-                    $('.vertical-sidebar').addClass('semi-nav');
-                }
-            },
-            naidapa_theme.remove_native_elements,
+            // Re-assert the stored open/closed choice. This runs on every view
+            // render, so it must go through the same helper as the toggle --
+            // the old inline copy here read a different key and could fight the
+            // toggle for control of the sidebar class.
+            // Re-assert WITHOUT persisting: this runs on every view render and must
+            // not rewrite the user's stored choice.
+            () => naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open()),
             naidapa_theme.update_sidebar_logo,
             naidapa_theme.bind_collapse_events,
             naidapa_theme.highlight_active_route,
             naidapa_theme.mutate_workspace_container,
-            naidapa_theme.mutate_custom_elements,
             naidapa_theme.inject_navbar_toggle,
             naidapa_theme.mutate_number_cards,
             naidapa_theme.setup_icon_picker,
@@ -249,48 +310,76 @@
         });
     };
 
+    // Is there anything for the toggle to actually toggle?
+    //
+    // The button controls the theme's own rail (`nav.vertical-sidebar`), so it is
+    // meaningless when that rail is absent or has no navigation in it. The rail
+    // markup is rendered on every desk page, but its menu only populates when
+    // `menu_data` resolves to at least one item -- on a page with no visible
+    // workspaces the rail is an empty shell, and a collapse/expand control over
+    // an empty rail is just noise.
+    naidapa_theme.sidebar_has_content = function () {
+        const $rail = $('nav.vertical-sidebar');
+        if ($rail.length === 0) return false;
+        return $rail.find('.main-nav > li').length > 0;
+    };
+
+    // The button's icon states what clicking it will DO, not what the sidebar
+    // currently is:
+    //   sidebar COLLAPSED -> "fold-right" (click expands it)
+    //   sidebar EXPANDED  -> "fold-left"  (click collapses it)
+    //
+    // Takes `is_open` explicitly rather than reading a class, because the class
+    // that means COLLAPSED is called `sidebar-menu-opened` -- reading it here was
+    // what made the arrow point the wrong way. Callers that already know the
+    // intent should pass it; with no argument we derive it, safely.
+    naidapa_theme.sync_sidebar_toggle_icon = function (is_open) {
+        if (typeof is_open !== 'boolean') {
+            is_open = !$('body').hasClass('sidebar-menu-opened');
+        }
+        $('.header-toggle iconify-icon').attr(
+            'icon',
+            is_open ? 'line-md:menu-fold-left' : 'line-md:menu-fold-right'
+        );
+    };
+
     naidapa_theme.inject_navbar_toggle = function () {
-        const isCollapsed = $('body').hasClass('sidebar-menu-opened');
-        const iconName = isCollapsed ? 'line-md:menu-fold-right' : 'line-md:menu-fold-left';
+        // Show the control only where it does something. `.navbar-brand` is the
+        // injection point; it is present on every desk page, so presence of the
+        // anchor is not a signal -- presence of sidebar *content* is.
+        if (!naidapa_theme.sidebar_has_content()) {
+            $('.header-toggle').remove();
+            return;
+        }
 
         if ($('.header-toggle').length === 0) {
-            const toggle_html = `<span class="header-toggle" style="margin-right: 15px; cursor: pointer; display: flex; align-items: center; font-size: 22px; color: var(--text-primary);"><iconify-icon icon="${iconName}"></iconify-icon></span>`;
+            // Spacing is owned by the stylesheet (`.header-toggle` rules in
+            // naidapa_theme.css), NOT by an inline style here. The inline
+            // `margin-right` this used to carry made the button's horizontal
+            // geometry un-overridable from CSS, which is what left it misaligned
+            // against Frappe's own `.sidebar-toggle-btn` in the page head.
+            const toggle_html = `<span class="header-toggle" role="button" tabindex="0" aria-label="${__('Toggle Sidebar')}" title="${__('Toggle Sidebar')}"><iconify-icon icon="line-md:menu-fold-right"></iconify-icon></span>`;
             $('.navbar-brand').before(toggle_html);
 
-            // Bind click event to toggle sidebar
             $('.header-toggle').on('click', function () {
-                const $body = $('body');
-                const $icon = $(this).find('iconify-icon');
-                const $sidebar = $('.vertical-sidebar');
-
-                if ($body.hasClass('sidebar-menu-opened')) {
-                    $body.removeClass('sidebar-menu-opened');
-                    $sidebar.removeClass('semi-nav');
-                    $icon.attr('icon', 'line-md:menu-fold-left');
-                    localStorage.setItem('naidapa_sidebar_collapsed', 'false');
-                } else {
-                    $body.addClass('sidebar-menu-opened');
-                    $sidebar.addClass('semi-nav');
-                    $icon.attr('icon', 'line-md:menu-fold-right');
-                    localStorage.setItem('naidapa_sidebar_collapsed', 'true');
-                }
+                // Clicking TOGGLES: if the rail is presently compacted
+                // (`sidebar-menu-opened` == collapsed), the click expands it.
+                const currently_collapsed = $('body').hasClass('sidebar-menu-opened');
+                naidapa_theme.set_sidebar_open(currently_collapsed);
             });
-        } else {
-            $('.header-toggle iconify-icon').attr('icon', iconName);
         }
+
+        // Always re-sync: the icon must match current state on every pass, not
+        // only the first time the button is injected.
+        naidapa_theme.sync_sidebar_toggle_icon();
     };
 
-    naidapa_theme.mutate_custom_elements = function () {
-        const changes = [
-            { selector: '.old-style-class', add: 'new-style-class', remove: 'old-style-class' },
-        ];
-
-        changes.forEach(item => {
-            let $el = $(item.selector);
-            if (item.remove) $el.removeClass(item.remove);
-            if (item.add) $el.addClass(item.add);
-        });
-    };
+    // NOTE: `naidapa_theme.mutate_custom_elements` used to live here. It only
+    // rewrote `.old-style-class` -> `.new-style-class`, and neither class exists
+    // anywhere in Frappe, ERPNext or this theme -- a full-tree grep for both
+    // returns nothing. It was a no-op running a jQuery query on every
+    // run_patches() pass, i.e. on every view render and every MutationObserver
+    // frame. Removed rather than left as a template.
 
     naidapa_theme.highlight_active_route = function () {
         const current_path = window.location.pathname.toLowerCase();
@@ -368,9 +457,24 @@
         });
     };
 
-    naidapa_theme.remove_native_elements = function () {
-        $('.layout-side-section, .sidebar-toggle-btn, .desk-sidebar').hide();
-    };
+    // NOTE: `naidapa_theme.remove_native_elements` used to live here:
+    //
+    //   $('.layout-side-section, .sidebar-toggle-btn, .desk-sidebar').hide();
+    //
+    // It was removed because hiding `.layout-side-section` deleted stock
+    // features rather than restyling them. That class is a SHARED container
+    // Frappe creates once per page (frappe/public/js/frappe/ui/page.js:101) and
+    // reuses for the form sidebar (Assigned To / Attachments / Tags / Share /
+    // Likes / Follow), the list-view filter rail, global search and print
+    // preview. Hiding `.sidebar-toggle-btn` also removed the user's only way to
+    // bring the rail back.
+    //
+    // The stylesheet now owns this decision and hides only the native
+    // *workspace* rail, via the workspace-only `.desk-sidebar` selector. A JS
+    // sweep re-asserting it on every view render and every MutationObserver
+    // frame was both redundant and pure cost.
+    //
+    // Regression guard: myWorks/scripts/check_shared_ui_hides.py
 
     naidapa_theme.mutate_workspace_container = function () {
         const selectors = [
@@ -415,7 +519,14 @@
                     chart._naidapa_splined = true;
                     if (chart.options && (chart.options.type === 'line' || chart.options.type === 'axis-mixed')) {
                         chart.options.lineOptions = chart.options.lineOptions || {};
-                        chart.options.lineOptions.splines = 1;
+                        // NOTE: `spline` is SINGULAR. This line used to read
+                        // `splines`, which frappe-chart never reads, so the
+                        // smoothed-curve effect this function exists to create
+                        // never actually applied. Verified against the library
+                        // bundle: it reads lineOptions.spline / .hideDots /
+                        // .regionFill / .showDots / .trailingDot.
+                        // See https://frappe.io/charts/docs/basic/trends_regions
+                        chart.options.lineOptions.spline = 1;
                         chart.options.lineOptions.hideDots = 1;
                         chart.options.lineOptions.regionFill = 0;
                         chart.draw(); // Redraws with splines correctly!
@@ -463,7 +574,11 @@
         observer.observe(document.body, { childList: true, subtree: true });
     });
 
+    // `page-change` covers the SPA route changes that do NOT re-run a view's
+    // make() (and therefore previously left the rail expanded). Both events are
+    // wired to the same idempotent pass, so applying it more than once is safe.
     $(document).on('app_ready page-change', function () {
+        naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open());
         naidapa_theme.run_patches();
         naidapa_theme.mutate_charts();
     });

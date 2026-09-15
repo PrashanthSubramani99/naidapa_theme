@@ -8,6 +8,15 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, minimal-ui">
     <title>Naidapa Theme App</title>
 
+    {# These were missing from this override, which is why the desk tab had no icon
+       and desk.js:set_favicon() ended up injecting href="undefined". #}
+    <link rel="shortcut icon"
+        href="{{ favicon or '/assets/frappe/images/frappe-favicon.svg' }}" type="image/x-icon">
+    <link rel="icon"
+        href="{{ favicon or '/assets/frappe/images/frappe-favicon.svg' }}" type="image/x-icon">
+    <link rel="apple-touch-icon"
+        href="{{ favicon or '/assets/frappe/images/frappe-favicon.svg' }}">
+
     {% for include in include_css -%}
     {{ include_style(include) }}
     {%- endfor -%}

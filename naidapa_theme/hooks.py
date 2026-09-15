@@ -7,21 +7,74 @@ app_license = "mit"
 
 # Fixtures
 # ------------------
-# Config that would otherwise only live in this site's database (sidebar
-# menu structure, branding/colors, workspace grouping) so a fresh
-# `bench --site X install-app naidapa_theme && bench migrate` reproduces it
-# instead of it only existing on this one machine.
+# Configuration this app OWNS, so a fresh `install-app naidapa_theme` reproduces
+# the theme it ships instead of it existing only on the machine it was built on.
+#
+# RULE: a fixture may carry *structure and defaults*. It must NEVER carry a
+# customer's identity or their settings, because a Frappe fixture is applied on
+# every `bench migrate` -- an unfiltered entry is therefore a data-loss event on
+# the tenant's site, not a one-time seed.
+#
+# Removed from this list (2026-09-15), each for a concrete reason:
+#
+#   {"doctype": "Website Settings"}
+#     A Single is exported as ONE record holding ALL 45 fields, so this
+#     overwrote the tenant's app_name, app_logo, favicon, top/footer bar items
+#     AND flipped `disable_signup` to 1 on every migrate. The app has no business
+#     owning any of those. Nothing is lost by removing it: branding.py's
+#     sync_branding() writes the logo/favicon the theme needs, and it derives
+#     them from Navbar/Theme Settings rather than from this fixture.
+#
+#   {"doctype": "Navbar Settings"}
+#     Same Single-record problem. It shipped the vendor's logo and Frappe's own
+#     help/settings dropdowns. The theme reads only `app_logo` from this DocType
+#     (branding.get_navbar_logo), so removing the fixture costs nothing and stops
+#     the app branding every tenant with its own logo.
+#
+#   {"doctype": "Workspace Group"}
+#     Unfiltered, and it shipped 9 groups (Masters, Sales, Purchases, Inventory,
+#     Finance, HR, Projects, Reports, Administration) that are one client's menu
+#     taxonomy. Because there is no filter, a tenant who created their OWN groups
+#     would have had them exported back into this app and then pushed onto every
+#     other tenant. Nothing needs it: the sidebar renders
+#     `Theme Settings.workspace_order` labels as free text
+#     (templates/includes/ocean/ocean_sidebar.html) and never resolves them
+#     against Workspace Group, so a tenant can use any grouping they like.
+#     install.py no longer creates these groups either.
+#
+# `Theme Settings` is kept because the app owns that DocType -- but note it is a
+# Single too, so it is still a whole-record import. Its shipped branding fields
+# (sidebar_logo, favicon_image, title) are deliberately EMPTY; a tenant supplies
+# their own.
+#
+# WHAT THIS MEANS IN PRACTICE: because `theme_settings.json` is a whole-record
+# import, every field listed in it is re-asserted on the tenant's site on every
+# `bench migrate`. That is acceptable for the theme's own appearance settings
+# (they ARE the product's defaults), but it is exactly the mechanism that made
+# the Website/Navbar entries above so damaging -- a Single fixture cannot patch
+# one field, it replaces the record. If any future field here would belong to the
+# tenant rather than to the theme, it must be taken out of this fixture and
+# seeded create-if-absent from install.py instead.
+#
+# KNOWN OPEN ITEM: `workspace_order` ships EMPTY, so get_desktop_pages() falls
+# back to listing the tenant's own Workspaces. Setting it non-empty switches the
+# sidebar into "order" mode, where a workspace the tenant has but the list does
+# not mention is hidden. So it is currently correct-but-basic; the richer
+# behaviour and the per-tenant question it raises are recorded as Slice 4b in
+# myWorks/docs/theme-audit/2026-09-14-naidapa-theme-product-audit.md.
 fixtures = [
-    {"doctype": "Workspace Group"},
     {"doctype": "Theme Settings"},
-    {"doctype": "Website Settings"},
-    {"doctype": "Navbar Settings"},
 ]
 
 # Apps
 # ------------------
 
-# required_apps = []
+# The theme is not standalone: install.py seeds Workspace defaults and an icon
+# map that reference ERPNext workspaces (Accounting, Selling, Stock, ...), and it
+# reads `Navbar Settings` / `Website Settings`, both of which ERPNext shapes for a
+# business site. Declaring this makes a wrong install fail fast with Frappe's own
+# dependency error instead of succeeding and then misbehaving.
+required_apps = ["frappe", "erpnext"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -45,7 +98,7 @@ fixtures = [
 # reloads until that window lapses or the URL itself changes. Bump the "?v="
 # query string below on every edit to naidapa_theme.css/js so browsers are
 # forced to fetch the new content instead of trusting their cached copy.
-NAIDAPA_ASSET_VERSION = "37"
+NAIDAPA_ASSET_VERSION = "50"
 app_include_css = [
     "/assets/naidapa_theme/vendor/simplebar/simplebar.css",
     f"/assets/naidapa_theme/css/naidapa_admin_base.css?v={NAIDAPA_ASSET_VERSION}",
@@ -77,7 +130,10 @@ web_include_js = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {"Workspace" : "public/js/workspace_icon_picker.js"}
+doctype_js = {
+    "Workspace": "public/js/workspace_icon_picker.js",
+    "Theme Settings": "public/js/theme_settings_menu.js",
+}
 
 
 # Website route rewrites
@@ -136,9 +192,13 @@ after_migrate = "naidapa_theme.install.after_migrate"
 
 # Uninstallation
 # ------------
+# Registered so removing the app cleans up the schema it added to ERPNext's
+# Workspace DocType. Previously both hooks were commented out, so uninstalling
+# left that Custom Field (and its column) behind permanently.
+# See naidapa_theme/uninstall.py, which also documents what uninstall must NOT
+# touch (the tenant's own Website/Navbar Settings).
 
-# before_uninstall = "naidapa_theme.uninstall.before_uninstall"
-# after_uninstall = "naidapa_theme.uninstall.after_uninstall"
+after_uninstall = "naidapa_theme.uninstall.after_uninstall"
 
 # Integration Setup
 # ------------------
@@ -186,13 +246,18 @@ after_migrate = "naidapa_theme.install.after_migrate"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# The logo on the Navbar Settings screen is the master branding switch: saving it
+# mirrors the logo into Website Settings so the favicon and the app logo follow
+# on the desk, login, portal and website pages alike. Theme Settings is hooked as
+# well so a private logo set there is published too. See naidapa_theme/branding.py.
+doc_events = {
+	"Navbar Settings": {
+		"on_update": "naidapa_theme.branding.sync_branding",
+	},
+	"Theme Settings": {
+		"on_update": "naidapa_theme.branding.sync_branding",
+	},
+}
 
 # Scheduled Tasks
 # ---------------

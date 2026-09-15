@@ -65,6 +65,17 @@
 
 
 :root {
+    /* Rail geometry, as single source of truth.
+       The collapsible rail needs its width and the content's left offset to agree
+       exactly, or a dead band opens between them. Measured from a real screenshot
+       of the collapsed state: the rail ended at 79.6px while content began at
+       99px -- a ~19px gap. Deriving BOTH from these two tokens makes that
+       impossible to reintroduce by editing one of them only.
+       Collapsed is also narrower than it was (80px was too wide for the icons,
+       which sat hard against the right edge instead of centred). */
+    --naidapa-rail-width: 286px;
+    --naidapa-rail-width-collapsed: 64px;
+
     /* KI Admin Base Palette (Isolated with --ki- prefix to prevent Frappe UI breaks) */
     --ki-primary: 15, 98, 106;
     --ki-secondary: 98, 98, 98;
@@ -211,29 +222,100 @@ select.input-with-feedback {
     cursor: pointer;
 }
 
-/* Permanently hide Frappe's native workspace sidebars everywhere */
-.layout-side-section,
-.desk-sidebar,
-.sidebar-toggle-btn,
-body.naidapa-theme-active .layout-side-section,
-body.naidapa-theme-active .sidebar-toggle-btn,
+/* Hide Frappe's NATIVE workspace rail -- and nothing else.
+ *
+ * The native workspace navigation is the only thing this must remove, because
+ * the theme supplies its own rail (`nav.vertical-sidebar`, rendered from
+ * templates/includes/ocean/ocean_sidebar.html). `.desk-sidebar` is created by
+ * the workspace view and by nothing else:
+ *
+ *   frappe/public/js/frappe/views/workspace/workspace.js:60,63,151,567
+ *
+ * so this selector removes the native workspace menu without touching anything
+ * else on the page.
+ *
+ * DO NOT hide `.layout-side-section`. It looks like "the workspace sidebar"
+ * but it is a SHARED container that Frappe creates once per page
+ * (frappe/public/js/frappe/ui/page.js:101) and reuses for many unrelated
+ * features. Hiding it deleted all of these from the product:
+ *
+ *   - the form sidebar: Assigned To, Attachments, Tags, Share, Likes, Follow,
+ *     Reviews (frappe/public/js/frappe/form/sidebar/form_sidebar.js:23-38)
+ *   - the list-view filter rail: filters, quick filters, tag filters, saved
+ *     filters (frappe/public/js/frappe/list/base_list.js:285)
+ *   - global search results (frappe/public/js/frappe/ui/toolbar/search.html:2)
+ *   - the print-preview sidebar (frappe/public/scss/desk/print_preview.scss:45)
+ *
+ * DO NOT hide `.sidebar-toggle-btn` either: it is stock Frappe UI and the
+ * user's only way to toggle the rail back (frappe/public/js/frappe/ui/page.js
+ * setup_sidebar_toggle).
+ *
+ * Regression guard: myWorks/scripts/check_shared_ui_hides.py
+ */
 body.naidapa-theme-active .desk-sidebar {
     display: none !important;
-    width: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Page layout: let the content column absorb whatever the sidebar column does
+   NOT use.
+
+   A correction to an earlier note here, which claimed no rule was needed. That
+   was wrong, and the UI showed it as an empty left strip: Frappe's
+   `.layout-side-section` carries `col-lg-2` (16.67%, floated left), and
+   `.layout-main-section-wrapper` carries `col` (just `position: relative`,
+   no width). With `.layout-side-section` hidden or empty -- which is most pages
+   once the theme replaces the workspace rail -- the content column has NO width
+   to fall back on, so it sizes to its content and the page reads as pushed
+   right with a dead band on the left.
+
+   The original theme rule forced `flex: 1 1 100%`, which fixed that but broke
+   the opposite case: a 100% flex-basis consumes the whole row, so the restored
+   form/list sidebar (Assigned To/Attachments/Tags, list filters) was pushed
+   BELOW the content instead of beside it. Slice 1 removed it for that reason.
+
+   What is needed is the flex layout WITHOUT the 100% basis:
+     - make `.layout-main` a flex row so widths are negotiated, not fixed
+     - let the content column grow into all remaining space (`flex: 1`)
+     - let the sidebar column be content-sized and collapse when empty
+       (`flex: 0 0 auto`), while keeping its 2/12 cap via max-width so a
+       populated sidebar still looks like stock Frappe.
+
+   `max-width: none` on the content column is what overrides `.col`'s inherited
+   Bootstrap `max-width: 100%` so it can legitimately fill the row.
+   -------------------------------------------------------------------------- */
+body.naidapa-theme-active .layout-main {
+    display: flex !important;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+}
+
+body.naidapa-theme-active .layout-main > .layout-main-section-wrapper {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    max-width: none !important;
+    width: auto !important;
+}
+
+body.naidapa-theme-active .layout-main > .layout-side-section {
+    flex: 0 0 auto !important;
+    max-width: 16.666667% !important;
+}
+
+/* An empty sidebar column must occupy no width -- this is the dead strip the UI
+   showed. Deliberately NOT `display: none`: the regression guard
+   (myWorks/scripts/check_shared_ui_hides.py) correctly rejects hiding
+   `.layout-side-section`, because that is the bug that removed Assigned
+   To / Attachments / Tags / list filters in the first place. Collapsing the
+   width to 0 achieves the same visual result while leaving the container fully
+   functional -- it repopulates the moment Frappe puts anything inside it. */
+body.naidapa-theme-active .layout-main > .layout-side-section:empty {
+    flex-basis: 0 !important;
     max-width: 0 !important;
     min-width: 0 !important;
     padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    overflow: hidden !important;
 }
 
-body.naidapa-theme-active .layout-main-section,
-body.naidapa-theme-active .layout-main {
-    width: 100% !important;
-    max-width: 100% !important;
-    flex: 1 1 100% !important;
-}
 
 /* Style Frappe Native Navbar instead of hiding it */
 body.naidapa-theme-active .sticky-top .navbar {
@@ -244,9 +326,70 @@ body.naidapa-theme-active .sticky-top .navbar {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-/* Hide Frappe's native application logo in the navbar */
+/* Hide Frappe's native application logo in the navbar.
+   NOTE: `display: none` alone does NOT remove its flex slot -- see the toggle
+   alignment block below, which also zeroes its size so it cannot push the
+   breadcrumbs (and therefore nothing else) to the right. */
 body.naidapa-theme-active .sticky-top .navbar-brand.navbar-home {
     display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Align the sidebar toggle with the left edge of the page content.
+
+   MEASURED, not guessed: in a real screenshot (1891px image over a ~1583px
+   viewport, scale 1.195) the theme's toggle sat at image x=139 while Frappe's own
+   `.sidebar-toggle-btn` in the page head sat at image x=40 -- i.e. ~87px vs ~25px
+   in CSS px, about 62px apart.
+
+   The offset does not come from the navbar's own padding. The toggle is injected
+   as a sibling of `.navbar-brand` inside `.navbar > .container`, and:
+
+     * `.navbar-brand` is only `display: none` (theme rule above), so its flex
+       slot can still reserve horizontal space;
+     * `container.navbar-nav` / Bootstrap `.nav` carry default left margins;
+     * `.navbar-nav` has its own margin-start.
+
+   Rather than stack compensating magic numbers on top of that, this pushes the
+   toggle to the container's left edge by removing every inherited horizontal
+   offset, then applies one explicit inset. That leaves exactly one number to
+   tune if it is still off.
+   -------------------------------------------------------------------------- */
+body.naidapa-theme-active .navbar .header-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    order: -1;               /* become the first item in the container */
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-primary);
+}
+
+/* The hidden brand still occupies a flex slot ahead of the breadcrumbs; take it
+   out of flow entirely so nothing downstream is pushed right. */
+body.naidapa-theme-active .navbar > .container > .navbar-brand.navbar-home {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 0 !important;
+    width: 0 !important;
+}
+
+/* The breadcrumb list is empty on a workspace/desk route but Bootstrap `.nav`
+   adds a left margin that shifts whatever follows it. */
+body.naidapa-theme-active .navbar > .container > .navbar-nav:empty {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* Spacing between the toggle and whatever follows it. */
+body.naidapa-theme-active .navbar .header-toggle + * {
+    margin-left: 12px;
 }
 
 /* Hide the custom empty header since we are styling the native one */
@@ -281,7 +424,7 @@ nav.vertical-sidebar {
     height: 100vh !important;
     margin-top: 0 !important;
     padding-top: 0 !important;
-    width: 286px;
+    width: var(--naidapa-rail-width);
     z-index: 1030 !important;
     transition: width 0.3s ease;
 }
@@ -310,7 +453,7 @@ body.naidapa-theme-active .sticky-top {
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-left: 286px;
+    padding-left: var(--naidapa-rail-width);
     margin-top: 0 !important;
     padding-top: 0 !important;
     transition: padding-left 0.3s ease;
@@ -343,14 +486,26 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
 
 /* Semi-nav (collapsed sidebar) desktop overrides - EXACT MATCH FOR KI-ADMIN SPECIFICITY */
 @media (min-width: 992px) {
+    /* Collapsed-state offsets.
+       NOTE the selectors: `nav.semi-nav ~ .app-content` depends on the rail being
+       a PRECEDING SIBLING of the content pane. That holds today (both are direct
+       children of `.app-wrapper`, see ocean/main.html), but it is a single point
+       of failure -- if the rail moves, or a route renders a different wrapper,
+       the collapsed offset silently stops applying while the rail is still 64px,
+       leaving a large empty gap. The class on <body> is now matched as well, and
+       apply_sidebar_state() sets it on every render, so the offset no longer
+       depends on DOM order. */
+    body.sidebar-menu-opened .app-wrapper .app-content,
+    body.sidebar-menu-opened .app-content,
     .app-wrapper nav.semi-nav ~ .app-content,
-    body.sidebar-menu-opened .app-wrapper .app-content {
-        padding-left: 80px !important;
+    .app-wrapper .vertical-sidebar.semi-nav ~ .app-content {
+        padding-left: var(--naidapa-rail-width-collapsed) !important;
     }
 
-    nav.semi-nav,
-    body.sidebar-menu-opened nav.vertical-sidebar {
-        width: 80px !important;
+    body.sidebar-menu-opened nav.vertical-sidebar,
+    nav.vertical-sidebar.semi-nav,
+    nav.semi-nav {
+        width: var(--naidapa-rail-width-collapsed) !important;
     }
 
     nav.semi-nav:not(:hover) .app-logo,
@@ -431,7 +586,7 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
     /* Expand sidebar on hover when collapsed */
     nav.semi-nav:hover,
     body.sidebar-menu-opened nav.vertical-sidebar:hover {
-        width: 286px !important;
+        width: var(--naidapa-rail-width) !important;
         box-shadow: 4px 0 25px rgba(0,0,0,0.12) !important;
         z-index: 1040 !important;
     }
@@ -703,13 +858,13 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
 
     /* The desktop hide logic is completely removed so the semi-nav class can dictate standard shrinking instead of hiding entirely */
     body.sidebar-menu-opened nav:not(.semi-nav) {
-        margin-left: -286px;
+        margin-left: calc(-1 * var(--naidapa-rail-width));
     }
 }
 
 @media (max-width: 991px) {
     nav {
-        margin-left: -286px;
+        margin-left: calc(-1 * var(--naidapa-rail-width));
     }
 
     .app-wrapper .app-content {
@@ -760,9 +915,19 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
     text-transform: capitalize;
 }
 
-.widget .widget-subtitle {
-    display: none !important;
-}
+/* NOTE: `.widget .widget-subtitle { display: none !important; }` used to live
+ * here. It was removed: that element is not decoration. Frappe writes the chart
+ * widget's data-freshness text into it --
+ * frappe/public/js/frappe/widgets/chart_widget.js:715 sets
+ * `this.subtitle_field.html(last_synced_text)` and :181 explicitly `.show()`s
+ * it -- so the rule hid "last synced" from every dashboard. The `!important`
+ * even beat that `.show()`.
+ *
+ * No replacement is needed: Frappe already styles it
+ * (scss/desk/desktop.scss:241 and :384 -- font-size + `var(--text-muted)`).
+ *
+ * Regression guard: myWorks/scripts/check_shared_ui_hides.py
+ */
 
 /* 3. The Widget Box Pattern Base */
 .links-widget-box {
@@ -844,10 +1009,14 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
     text-decoration: none !important;
 }
 
-/* Faux Soft Rounded Icon is completely removed for cleaner card look */
-.links-widget-box .link-item::before {
-    display: none !important;
-}
+/* NOTE: `.links-widget-box .link-item::before { display: none !important; }`
+ * used to live here ("Faux Soft Rounded Icon is completely removed for cleaner
+ * card look"). It was removed as vestigial: NO stylesheet in Frappe, ERPNext or
+ * this theme defines a `::before` for `.link-item`, so the rule hid nothing.
+ * The real shortcut-card glyph is the `svg.es-icon` arrow, which this theme
+ * styles deliberately (see `.links-widget-box .link-item svg.es-icon` below)
+ * and which this rule never touched.
+ */
 
 /* Hover Effect for Link Cards */
 .links-widget-box .link-item:hover {
@@ -884,10 +1053,20 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
     transform: translateX(3px);
 }
 
-/* Hide Footer if empty */
-.widget-footer {
-    display: none !important;
-}
+/* NOTE: `.widget-footer { display: none !important; }` used to live here under
+ * the comment "Hide Footer if empty".
+ *
+ * It was removed for two reasons:
+ *  1. CSS cannot test emptiness, so this hid EVERY widget footer
+ *     unconditionally -- not just empty ones -- including the footer around the
+ *     `.see-all` "view all" control, which Frappe styles as a full-width button
+ *     (frappe/public/scss/desk/desktop.scss:806+).
+ *  2. Frappe already hides the footer where it should be hidden: the heatmap
+ *     chart does it itself at desktop.scss:284-286.
+ *
+ * If a genuinely empty footer must be hidden, do it in JS where emptiness is
+ * knowable -- do not do it with an unconditional CSS rule.
+ */
 
 
 
@@ -1083,15 +1262,24 @@ span.sidebar-item-label {
         repeating-linear-gradient(to right, black 0px, black 6px, transparent 6px, transparent 14px);
 }
 
-/* Hide scattered data points per image */
-.frappe-chart .dataset-units circle {
-    display: none !important;
-}
-
-/* Remove default faint fill so line is distinct */
-.frappe-chart path.region-fill {
-    display: none !important;
-}
+/* NOTE: two chart rules used to live here:
+ *
+ *   .frappe-chart .dataset-units circle { display: none !important; }
+ *   .frappe-chart path.region-fill     { display: none !important; }
+ *
+ * Both were removed as redundant with the theme's own JS. `mutate_charts()`
+ * already states the same intent through the chart API
+ * (naidapa_theme/public/js/naidapa_theme.js:439-440 -- `hideDots = 1` and
+ * `regionFill = 0`), so the CSS was the same decision expressed a second time --
+ * except that `!important` cannot be overridden by that API, which made the
+ * stylesheet the real authority and defeated the JS.
+ *
+ * Stating it once, in the place that can be changed per chart type, keeps the
+ * gradient-line design intact (see the mask/gradient on `.line-graph-path`
+ * above) while leaving data points styleable again. If dots should be hidden,
+ * `hideDots` in mutate_charts() is the single lever -- do not re-add a CSS
+ * `display: none` for them.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* NUMBER WIDGET CARDS OVERRIDES                                              */
@@ -1499,4 +1687,44 @@ nav.vertical-sidebar {
 .app-wrapper .app-content header.header-main,
 .header-main {
     background-color: #e6f1ef !important;
+}
+
+/* ==========================================================================
+   Fixed application footer
+   --------------------------------------------------------------------------
+   The <footer> is rendered by templates/includes/ocean/main.html. Its fixed
+   positioning (position/bottom/left/width/z-index) already comes from the
+   `div > footer` rule in naidapa_admin_base.css -- the theme just never
+   rendered a <footer> for it to match, which is why the bar was missing.
+   Everything here only lays out the two ends and reserves room so the bar
+   cannot cover the bottom of the page content.
+   ========================================================================== */
+.naidapa-app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    /* Muted rather than full-strength: --ki-secondary at 70% alpha. */
+    color: rgba(var(--ki-secondary), 0.7);
+    /* `div > footer` pads 20rem left / 2.5rem right to clear the sidebar, which
+       would push a centred line ~8.75rem right of true centre. The sidebar has a
+       higher z-index and its own background, so the bar sitting behind it is
+       already hidden -- matching the gutters keeps the centring honest. */
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+}
+
+.naidapa-footer-note {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The bar is roughly 3rem tall; reserve that at the end of the scrolling
+   content column so long pages and list views are not hidden behind it. */
+.app-wrapper .app-content {
+    padding-bottom: 3.5rem;
 }

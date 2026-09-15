@@ -6,19 +6,59 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "workspace",
+  "enabled",
+  "workspace_label",
+  "target_type",
+  "target",
+  "external_url",
+  "route_query",
   "icon",
   "workspace_group",
-  "workspace_label"
+  "allowed_roles",
+  "workspace"
  ],
  "fields": [
   {
-   "fieldname": "workspace",
-   "fieldtype": "Link",
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Workspace",
-   "options": "Workspace",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "workspace_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label"
+  },
+  {
+   "fieldname": "target_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Target Type",
+   "options": "DocType\nReport\nDashboard\nWorkspace\nURL",
    "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.target_type!='URL'",
+   "description": "The DocType, Report, Dashboard or Workspace to open. Suffix with ?field=value if you need a filtered list.",
+   "fieldname": "target",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Target",
+   "options": "target_type"
+  },
+  {
+   "depends_on": "eval:doc.target_type=='URL'",
+   "fieldname": "external_url",
+   "fieldtype": "Data",
+   "label": "External URL"
+  },
+  {
+   "fieldname": "route_query",
+   "fieldtype": "Data",
+   "label": "Query String",
+   "description": "Optional. e.g. payment_type=Receive"
   },
   {
    "fieldname": "icon",
@@ -33,16 +73,23 @@
    "options": "Workspace Group"
   },
   {
-   "fieldname": "workspace_label",
+   "description": "Comma-separated role names, e.g. 'System Manager, Accounts Manager'. Leave empty to show this item to everyone who can open the target. A Table of roles is NOT usable here: Frappe does not persist child tables nested inside a child table, so that would silently save nothing.",
+   "fieldname": "allowed_roles",
    "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "WorkSpace Label"
+   "label": "Allowed Roles"
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Legacy Target",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-22 13:05:34.288192",
+ "modified": "2026-09-10 22:26:00.000000",
  "modified_by": "Administrator",
  "module": "Naidapa Theme",
  "name": "Workspace Order",
