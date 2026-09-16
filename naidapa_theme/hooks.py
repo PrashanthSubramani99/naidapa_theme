@@ -95,10 +95,25 @@ required_apps = ["frappe", "erpnext"]
 # NOTE: these are plain /assets/... paths (not esbuild-hashed *.bundle.*
 # names), so they're served with Cache-Control: max-age=43200 and no content
 # hash. Browsers can keep serving a stale copy through normal and even hard
-# reloads until that window lapses or the URL itself changes. Bump the "?v="
-# query string below on every edit to naidapa_theme.css/js so browsers are
-# forced to fetch the new content instead of trusting their cached copy.
-NAIDAPA_ASSET_VERSION = "50"
+# reloads until that window lapses or the URL itself changes -- so the "?v="
+# query string below is the ONLY cache-buster.
+#
+# DO NOT hand-bump it. It is a content hash, derived from the theme's css/js,
+# and it must be published together with a purge of the cached hooks:
+#
+#     python3 ~/oman-project/myWorks/scripts/theme_publish_assets.py
+#
+# which computes the hash, writes it here, purges the redis `app_hooks` key and
+# then FAILS LOUDLY if the running server is still emitting an older "?v=".
+#
+# Why the purge is mandatory: frappe.get_hooks() reads hooks from redis (key
+# `<db_name>|app_hooks`) unless `developer_mode` is on (frappe/__init__.py
+# get_hooks). Editing this file therefore changes NOTHING on the running server
+# until that key is dropped. On 2026-09-16 that combination made a shipped CSS
+# fix look like it "did nothing" in the browser: the CSS on disk was correct,
+# the server was still advertising the old ?v=, and the browser served its 12h
+# copy of the old stylesheet. There was no error anywhere to notice.
+NAIDAPA_ASSET_VERSION = "ab19e1aa3a95"
 app_include_css = [
     "/assets/naidapa_theme/vendor/simplebar/simplebar.css",
     f"/assets/naidapa_theme/css/naidapa_admin_base.css?v={NAIDAPA_ASSET_VERSION}",

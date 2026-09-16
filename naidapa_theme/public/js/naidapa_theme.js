@@ -48,6 +48,13 @@
     // `is_open === false` -> 80px compact rail.
     naidapa_theme.apply_sidebar_state = function (is_open) {
         const collapsed = !is_open;
+        // `naidapa-sidebar-open` is the readable, intent-stating class: it is what
+        // the narrow-viewport rules key off (see the mobile block in the
+        // stylesheet). They used to key off `sidebar-menu-opened`, which means
+        // CLOSED -- so on phones/tablets the 286px rail was pinned OPEN over the
+        // content whenever the sidebar was meant to be closed, hiding the page
+        // (and burying the page-head toggle underneath it).
+        $('body').toggleClass('naidapa-sidebar-open', is_open);
         $('body').toggleClass('sidebar-menu-opened', collapsed);
         $('.vertical-sidebar').toggleClass('semi-nav', collapsed);
         naidapa_theme.sync_sidebar_toggle_icon(is_open);
@@ -65,8 +72,250 @@
         // apply_sidebar_state, NOT set_sidebar_open: a first visit has no stored
         // preference and must stay collapsed without writing one.
         naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open());
+        naidapa_theme.apply_page_sidebar_state(naidapa_theme.page_sidebar_is_open());
+        naidapa_theme.bind_page_sidebar_toggle();
         naidapa_theme.apply_theme_colors();
         naidapa_theme.run_patches();
+
+        // Only NOW let the rail (and the content offset that carries the toggle
+        // button) animate. The state above has just been applied -- in the normal
+        // case it was already applied pre-paint by the inline script in
+        // www/app.html, so this is a no-op; if storage was unavailable it is an
+        // instant snap rather than a 300ms slide that eats clicks aimed at the
+        // moving button (see `.naidapa-sidebar-settled` in naidapa_theme.css).
+        // rAF so the frame above is painted first, plus a timeout fallback because
+        // rAF does not fire in a background tab.
+        const settle = () => document.body.classList.add('naidapa-sidebar-settled');
+        if (window.requestAnimationFrame) window.requestAnimationFrame(settle);
+        window.setTimeout(settle, 250);
+    };
+
+    // -------------------------------------------------------------------------
+    // PAGE-LEVEL SIDEBAR -- Frappe's `.sidebar-toggle-btn`
+    // -------------------------------------------------------------------------
+    // NOT the same thing as the theme rail handled above, and not the
+    // `.desk-sidebar` the theme hides. This is the per-page panel Frappe mounts
+    // in `.layout-main > .layout-side-section` and fills with the form sidebar
+    // (Assigned To, Attachments, Tags, Share) or, on list views, the filter rail.
+    //
+    // DEFAULT CLOSED, on every page: the panel starts collapsed so the content
+    // column spans the full width, and the user opens it with the toggle. The
+    // DEFAULT itself lives in the stylesheet
+    // (`body:not(.naidapa-page-sidebar-open)`, i.e. hidden from the first paint
+    // and with no JS needed to get there); this key only records a user who
+    // deliberately opened it, so their choice survives navigation.
+    const PAGE_SIDEBAR_PREF_KEY = 'naidapa_page_sidebar_open';
+
+    naidapa_theme.page_sidebar_is_open = function () {
+        return localStorage.getItem(PAGE_SIDEBAR_PREF_KEY) === 'true';
+    };
+
+    // The panel is shown only when it is actually rendered at a non-zero width:
+    // `:visible` alone is not enough, because the collapsed state is a WIDTH
+    // collapse (the element still has height, so jQuery calls it visible).
+    naidapa_theme.page_sidebar_is_visible = function () {
+        const $panel = $('.layout-main > .layout-side-section');
+        return $panel.length > 0 && $panel.is(':visible') && $panel.width() > 0;
+    };
+
+    // Frappe's own convention, kept so the button never disagrees with the rest
+    // of Desk (frappe/public/js/frappe/ui/page.js update_sidebar_icon):
+    //   panel OPEN   -> "collapse" icon, `>>` (clicking closes it)
+    //   panel CLOSED -> "expand"   icon, `<<` (clicking opens it)
+    // Derived from the DOM rather than from our stored preference, because
+    // Frappe also hides the panel by itself (e.g. on an unsaved document it adds
+    // `.hide-sidebar`), and the button must describe what is on screen.
+    naidapa_theme.sync_page_sidebar_toggle_icon = function () {
+        $('.page-head .sidebar-toggle-btn .sidebar-toggle-icon use').attr(
+            'href',
+            naidapa_theme.page_sidebar_is_visible()
+                ? '#es-line-sidebar-collapse'
+                : '#es-line-sidebar-expand'
+        );
+    };
+
+    naidapa_theme.apply_page_sidebar_state = function (is_open) {
+        $('body').toggleClass('naidapa-page-sidebar-open', is_open);
+        naidapa_theme.sync_page_sidebar_toggle_icon();
+    };
+
+    // Frappe's click handler (page.js setup_sidebar_toggle) flips the panel with
+    // an INLINE display on desktop, and opens it as an off-canvas OVERLAY on phone
+    // / tablet widths. Our own handler has to drive both paths, because the button
+    // it is attached to may be one we RE-CREATED (see
+    // sync_page_sidebar_toggle_presence) and a re-created element carries none of
+    // Frappe's bindings -- measured: `jQuery._data(button, 'events')` was empty
+    // after a remove/re-insert cycle, which is why tapping the toggle on a phone
+    // did nothing.
+    naidapa_theme.set_page_sidebar_open = function (is_open) {
+        localStorage.setItem(PAGE_SIDEBAR_PREF_KEY, is_open ? 'true' : 'false');
+        naidapa_theme.apply_page_sidebar_state(is_open);
+
+        if (frappe.utils.is_xs() || frappe.utils.is_sm()) {
+            const page = window.cur_page;
+            if (!page) return;
+            if (is_open && page.setup_overlay_sidebar) {
+                page.setup_overlay_sidebar();
+            } else if (!is_open && page.close_sidebar) {
+                page.close_sidebar();
+            }
+            return;
+        }
+
+        // Desktop: normalise the inline display Frappe's own handler leaves behind,
+        // or it silently wins later (an inline `display: none` would keep the panel
+        // hidden even after the user opened it, since the stylesheet only collapses
+        // the panel by width).
+        $('.layout-main > .layout-side-section').css('display', is_open ? 'block' : '');
+    };
+
+    naidapa_theme.bind_page_sidebar_toggle = function () {
+        // Delegated on `document` on purpose: a delegated listener runs LAST in
+        // the bubble phase, i.e. after Frappe's own handler bound directly to the
+        // button, which is what lets set_page_sidebar_open() correct it.
+        $(document)
+            .off('click.naidapa_page_sidebar', '.page-head .sidebar-toggle-btn')
+            .on('click.naidapa_page_sidebar', '.page-head .sidebar-toggle-btn', function () {
+                // Toggle our own intent, never the DOM: reading visibility here
+                // would be wrong, because the panel is still collapsed by width at
+                // this point in the click.
+                naidapa_theme.set_page_sidebar_open(!naidapa_theme.page_sidebar_is_open());
+            });
+    };
+
+    // Does the panel actually have anything to SHOW?
+    //
+    // "Non-empty" is not the same as `.layout-side-section` containing nodes.
+    // Measured across route types (same DOM, different content):
+    //   form  -> `.form-sidebar`  with 13 painting elements (Assigned To, ...)
+    //   list  -> `.list-sidebar`  with  5 (the filter rail)
+    //   workspace -> ONLY `.desk-sidebar` (1100 nodes -- which THIS THEME hides,
+    //                `body.naidapa-theme-active .desk-sidebar`) plus a 1px
+    //                sr-only skip-link button. So the panel is 249px of nothing,
+    //                and a toggle over it is a control that shifts the page and
+    //                reveals an empty band.
+    //
+    // A box test alone is not enough either: the wrapper (`.list-sidebar`) still
+    // measures 249x787 on a workspace page, because it is the CHILD that is
+    // hidden. So: walk the tree, skip the theme-hidden subtree entirely, and look
+    // for something that paints (text leaf, icon, image or control) at a real
+    // size. Screen-reader-only nodes are excluded -- they are deliberately 1px.
+    naidapa_theme.page_sidebar_has_content = function () {
+        const panel = document.querySelector('.layout-main > .layout-side-section');
+        if (!panel) return false;
+
+        // Frappe's OWN verdict first. For an unsaved document
+        // `form_sidebar.refresh()` adds `.hide-sidebar` to this panel AND toggles
+        // the widget menu off (form_sidebar.js:70-74), so opening it would show an
+        // empty 249px band -- there is genuinely nothing to toggle until the record
+        // is saved (at which point Frappe removes the class and the toggle returns).
+        if (panel.classList.contains('hide-sidebar')) return false;
+
+        const paints = (el) => {
+            if (el.classList.contains('sr-only') || el.classList.contains('sr-only-focusable')) {
+                return false;
+            }
+            if (!el.getClientRects().length) return false; // display:none / detached
+            const box = el.getBoundingClientRect();
+            if (box.width < 5 || box.height < 5) return false;
+            const tag = el.tagName;
+            if (tag === 'SVG' || tag === 'IMG' || tag === 'INPUT' || tag === 'BUTTON' ||
+                tag === 'SELECT' || tag === 'TEXTAREA') {
+                return true;
+            }
+            return el.children.length === 0 && (el.textContent || '').trim().length > 0;
+        };
+
+        const walk = (node) => {
+            for (const el of node.children) {
+                // The workspace rail the theme replaces with its own; skipping the
+                // subtree also keeps this cheap (1100 nodes on a workspace page).
+                if (el.classList.contains('desk-sidebar')) continue;
+                if (paints(el) || walk(el)) return true;
+            }
+            return false;
+        };
+
+        if (walk(panel)) return true;
+
+        // SECOND PASS -- content that exists but is currently HIDDEN BY FRAPPE,
+        // or simply has not been painted yet (the form sidebar is filled
+        // asynchronously by form_sidebar.refresh(), after the view's make()).
+        // A paint test alone is therefore not enough, and getting this wrong
+        // removed the toggle from forms: the widgets (Assigned To, Attachments,
+        // Tags, Share) are in the DOM before they are shown.
+        //
+        // So: a sidebar container holding something outside the theme-hidden
+        // `.desk-sidebar` subtree counts as content. That keeps a workspace page
+        // out (its `.list-sidebar` contains nothing but `.desk-sidebar`), which is
+        // the case the paint test is there for, while the unsaved-document case is
+        // already handled above by Frappe's own `.hide-sidebar` marker.
+        //
+        // The container must also be RENDERED at this viewport: on a phone the
+        // list filter rail is `hidden-xs` (display:none), and tapping a toggle for
+        // it does nothing at all -- Frappe's mobile equivalent is the "Filter"
+        // button in the list toolbar.
+        return Array.from(panel.querySelectorAll('.form-sidebar, .list-sidebar')).some((container) => {
+            if (getComputedStyle(container).display === 'none') return false;
+            return Array.from(container.querySelectorAll('*')).some((node) => !node.closest('.desk-sidebar'));
+        });
+    };
+
+    // Frappe's page template renders the toggle; keep a copy so it can be put
+    // back if the panel only gets its content later (the form sidebar is filled
+    // asynchronously by form_sidebar.refresh(), after the view's make()).
+    let page_toggle_html = null;
+
+    // Keep the control and the panel in step with each other:
+    //   no content in the panel -> no toggle (Frappe itself removes it when a page
+    //   sets disable_sidebar_toggle), and the panel stays collapsed
+    //   (body.naidapa-page-sidebar-empty) so nothing shifts and no empty band
+    //   appears even if the stored preference is "open".
+    naidapa_theme.sync_page_sidebar_toggle_presence = function () {
+        const panel = document.querySelector('.layout-main > .layout-side-section');
+        if (!panel) return;
+
+        const has_content = naidapa_theme.page_sidebar_has_content();
+        const $head = $('.page-head').first();
+        const $btn = $head.find('.sidebar-toggle-btn');
+        if ($btn.length && !page_toggle_html) page_toggle_html = $btn[0].outerHTML;
+
+        if (has_content) {
+            naidapa_theme._page_sidebar_empty_since = 0;
+            clearTimeout(naidapa_theme._page_sidebar_empty_timer);
+            $('body').removeClass('naidapa-page-sidebar-empty');
+            if (!$btn.length && page_toggle_html) {
+                $head.find('.page-title > .title-area').first().before(page_toggle_html);
+            }
+        } else {
+            // DEBOUNCED, and this matters: the panel is genuinely empty for the
+            // first frames of every route (the page shell renders before the
+            // ListSidebar / the form widgets are created), and this function runs on
+            // every mutation frame. Removing the button on a transient reading both
+            // hid it from pages that do have a sidebar AND destroyed Frappe's click
+            // binding with the element -- the copy we put back looked identical but
+            // was dead on touch layouts, where Frappe's own handler is the only
+            // thing that knows how to open the panel as an overlay. So: only act
+            // once the panel has STAYED empty.
+            const now = Date.now();
+            if (!naidapa_theme._page_sidebar_empty_since) {
+                naidapa_theme._page_sidebar_empty_since = now;
+                // Re-check on a timer as well: the MutationObserver only fires on
+                // DOM changes, so on a page that has settled there would be no
+                // further pass and the "stayed empty" verdict would never be
+                // reached (the button then stayed on workspace pages).
+                clearTimeout(naidapa_theme._page_sidebar_empty_timer);
+                naidapa_theme._page_sidebar_empty_timer = setTimeout(() => {
+                    naidapa_theme._page_sidebar_empty_since = 0;
+                    naidapa_theme.sync_page_sidebar_toggle_presence();
+                }, 1600);
+            } else if (now - naidapa_theme._page_sidebar_empty_since >= 1500) {
+                $('body').addClass('naidapa-page-sidebar-empty');
+                $btn.remove();
+            }
+        }
+
+        naidapa_theme.sync_page_sidebar_toggle_icon();
     };
 
     // Theme Settings ships primary_color/secondary_color color pickers, but
@@ -287,6 +536,10 @@
             // Re-assert WITHOUT persisting: this runs on every view render and must
             // not rewrite the user's stored choice.
             () => naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open()),
+            // The page-level toggle is re-rendered with every page, and Frappe
+            // rewrites its icon on its own clicks, so re-derive the chevron from
+            // what is actually on screen on every pass (idempotent).
+            naidapa_theme.sync_page_sidebar_toggle_presence,
             naidapa_theme.update_sidebar_logo,
             naidapa_theme.bind_collapse_events,
             naidapa_theme.highlight_active_route,
@@ -358,16 +611,41 @@
             // `margin-right` this used to carry made the button's horizontal
             // geometry un-overridable from CSS, which is what left it misaligned
             // against Frappe's own `.sidebar-toggle-btn` in the page head.
-            const toggle_html = `<span class="header-toggle" role="button" tabindex="0" aria-label="${__('Toggle Sidebar')}" title="${__('Toggle Sidebar')}"><iconify-icon icon="line-md:menu-fold-right"></iconify-icon></span>`;
+            //
+            // NO `title` attribute, on purpose: the button carries no hover
+            // styling at all (measured -- transparent background, no border, no
+            // shadow, no transform, no pseudo-element content), so the ONLY thing
+            // hovering it did was pop the native "Toggle Sidebar" tooltip over the
+            // logo/breadcrumb area. Removed on request (2026-09-16). The
+            // accessible name is kept via `aria-label`, so screen readers still
+            // announce it -- only the visual popup is gone. `cursor: pointer`
+            // stays: that is an affordance, not a popup.
+            const toggle_html = `<span class="header-toggle" role="button" tabindex="0" aria-label="${__('Toggle Sidebar')}"><iconify-icon icon="line-md:menu-fold-right"></iconify-icon></span>`;
             $('.navbar-brand').before(toggle_html);
+        }
 
-            $('.header-toggle').on('click', function () {
-                // Clicking TOGGLES: if the rail is presently compacted
-                // (`sidebar-menu-opened` == collapsed), the click expands it.
-                const currently_collapsed = $('body').hasClass('sidebar-menu-opened');
+        // Bound ONCE, DELEGATED, and re-asserted on every pass -- the same shape
+        // `bind_collapse_events` and the page-sidebar toggle already use.
+        //
+        // A direct `$('.header-toggle').on('click', ...)` ties the handler to one
+        // DOM node. Anything that re-renders the navbar (or re-injects the button)
+        // then leaves a button that looks and hovers perfectly but is DEAD, with
+        // no error to notice. Delegation moves the handler to `document`, so it
+        // survives the node being replaced. `.off()` first keeps it idempotent --
+        // this runs on every view render.
+        $(document)
+            .off('click.naidapa_rail_toggle', '.header-toggle')
+            .on('click.naidapa_rail_toggle', '.header-toggle', function () {
+                // Clicking TOGGLES: if the rail is presently compacted the click
+                // expands it. BOTH collapsed markers are checked, not just the
+                // body class: `apply_sidebar_state()` writes both, and the inline
+                // script in www/app.html writes both before boot, so reading
+                // either one alone is a needless single point of failure.
+                const currently_collapsed =
+                    $('body').hasClass('sidebar-menu-opened') ||
+                    $('nav.vertical-sidebar').hasClass('semi-nav');
                 naidapa_theme.set_sidebar_open(currently_collapsed);
             });
-        }
 
         // Always re-sync: the icon must match current state on every pass, not
         // only the first time the button is injected.

@@ -26,6 +26,40 @@
 
     {% include "naidapa_theme/templates/includes/ocean/main.html" %}
 
+    {# Apply the stored rail state to the classes NOW, while the parser is still
+       inside <body> and before Desk's scripts (end of body) have loaded.
+
+       Why inline and why here, rather than in naidapa_theme.js:
+         * the rail is server-rendered EXPANDED, and the theme JS only applies the
+           stored state once Desk has booted (~1.4s measured), so the rail used to
+           jump from 286px to 64px after first paint. With the width/padding
+           transitions live that jump was an animation, and it dragged the toggle
+           button 222px sideways (x=301 -> x=79) -- a click aimed during that
+           window hit empty space and silently did nothing ("the toggle does not
+           work the first time", reported 2026-09-16);
+         * it must run AFTER the include above, because the collapsed state needs
+           `semi-nav` on `nav.vertical-sidebar` as well as the body classes -- the
+           tile geometry, the label hiding and the chevron rules key off it (see
+           `.app-wrapper .semi-nav ...` in naidapa_theme.css), so a body-class-only
+           early state would render expanded-width tiles inside a 64px rail.
+       The class names and their (inverted) meaning are documented at the top of
+       naidapa_theme.js: `sidebar-menu-opened` / `semi-nav` == COLLAPSED.
+       Wrapped in try/catch: private-mode browsers throw on localStorage access,
+       and then the theme JS simply applies the state at boot as it did before. #}
+    <script type="text/javascript">
+        (function () {
+            try {
+                var open = localStorage.getItem('naidapa_sidebar_open_v2') === 'true';
+                document.body.classList.toggle('naidapa-sidebar-open', open);
+                document.body.classList.toggle('sidebar-menu-opened', !open);
+                var rail = document.querySelector('nav.vertical-sidebar');
+                if (rail) rail.classList.toggle('semi-nav', !open);
+            } catch (e) {
+                /* no storage access: leave it to naidapa_theme.js */
+            }
+        })();
+    </script>
+
     <!-- SVGs -->
     <div id="all-symbols" style="display:none"></div>
     <div id="build-events-overlay"></div>

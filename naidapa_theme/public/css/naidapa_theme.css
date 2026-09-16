@@ -76,6 +76,18 @@
     --naidapa-rail-width: 286px;
     --naidapa-rail-width-collapsed: 64px;
 
+    /* Horizontal gutter of the top navbar, and the ONE number that keeps the
+       navbar on the page's grid.
+       It must equal the gutter the page content itself uses -- Bootstrap's
+       `.container` padding, which is what puts the page title, the list's first
+       column and the page's "+ Add ..." button 15px in from the content edge.
+       The navbar's own two paddings (`padding: 12px 24px` further down, plus
+       Frappe's `.navbar .container { padding: 0 1rem }`) used to add up to 40px,
+       so the breadcrumb block and the user avatar sat 25px inside everything
+       below them -- a visible strip of dead space in front of the menu and
+       behind the profile button. Keep this equal to the container gutter. */
+    --naidapa-navbar-gutter: 15px;
+
     /* KI Admin Base Palette (Isolated with --ki- prefix to prevent Frappe UI breaks) */
     --ki-primary: 15, 98, 106;
     --ki-secondary: 98, 98, 98;
@@ -317,13 +329,33 @@ body.naidapa-theme-active .layout-main > .layout-side-section:empty {
 }
 
 
-/* Style Frappe Native Navbar instead of hiding it */
+/* Style Frappe Native Navbar instead of hiding it.
+   The horizontal padding is 0 on purpose: the gutter is owned by the container
+   rule below, which is the only element whose padding reaches the navbar's
+   first and last child. Two paddings (24px here + Frappe's 16px on the
+   container) used to stack into 40px of inset and push the whole navbar
+   rhythm off the page's grid. Vertical padding stays as it was. */
 body.naidapa-theme-active .sticky-top .navbar {
     background-color: var(--surface-color);
     backdrop-filter: var(--backdrop-blur);
     border-bottom: var(--glass-border);
-    padding: 12px 24px;
+    padding: 12px 0;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Put the navbar on the same horizontal grid as the page content.
+   Frappe ships `.navbar .container { padding: 0 1rem }` -- 16px, i.e. one pixel
+   off the 15px every desk page uses -- and the navbar element used to add 24px
+   more on top. Overriding the container padding (higher specificity than
+   Frappe's two-class selector) means:
+     * the first control in the navbar starts 15px from the content edge, like
+       the page title and the list's first column do;
+     * the user avatar ends 15px from the content edge, like the page's
+       "+ Add ..." button does.
+   `--naidapa-navbar-gutter` is that one number; nothing else may add to it. */
+body.naidapa-theme-active .sticky-top .navbar > .container {
+    padding-left: var(--naidapa-navbar-gutter);
+    padding-right: var(--naidapa-navbar-gutter);
 }
 
 /* Hide Frappe's native application logo in the navbar.
@@ -335,25 +367,25 @@ body.naidapa-theme-active .sticky-top .navbar-brand.navbar-home {
 }
 
 /* --------------------------------------------------------------------------
-   Align the sidebar toggle with the left edge of the page content.
+   The sidebar toggle is the navbar's first item, so its own left edge IS the
+   navbar's gutter -- there is nothing to align it against beyond that.
 
    MEASURED, not guessed: in a real screenshot (1891px image over a ~1583px
    viewport, scale 1.195) the theme's toggle sat at image x=139 while Frappe's own
    `.sidebar-toggle-btn` in the page head sat at image x=40 -- i.e. ~87px vs ~25px
    in CSS px, about 62px apart.
 
-   The offset does not come from the navbar's own padding. The toggle is injected
-   as a sibling of `.navbar-brand` inside `.navbar > .container`, and:
+   Its offset is inherited, not its own. The toggle is injected as a sibling of
+   `.navbar-brand` inside `.navbar > .container`, so it picks up whatever those
+   two carry:
 
-     * `.navbar-brand` is only `display: none` (theme rule above), so its flex
-       slot can still reserve horizontal space;
-     * `container.navbar-nav` / Bootstrap `.nav` carry default left margins;
-     * `.navbar-nav` has its own margin-start.
+     * the navbar element's own horizontal padding, and
+     * the container's padding (Frappe: `padding: 0 1rem`).
 
-   Rather than stack compensating magic numbers on top of that, this pushes the
-   toggle to the container's left edge by removing every inherited horizontal
-   offset, then applies one explicit inset. That leaves exactly one number to
-   tune if it is still off.
+   Those are now 0 and `--naidapa-navbar-gutter` respectively (see the two navbar
+   rules above), which is what puts this button on the page's 15px grid. What
+   remains here is only its intrinsic sizing and the gap to the breadcrumbs --
+   no compensating offsets, and no second inset.
    -------------------------------------------------------------------------- */
 body.naidapa-theme-active .navbar .header-toggle {
     display: flex;
@@ -362,7 +394,12 @@ body.naidapa-theme-active .navbar .header-toggle {
     flex: 0 0 auto;
     order: -1;               /* become the first item in the container */
     margin-left: 0;
-    margin-right: 0;
+    /* The gap to the breadcrumbs lives HERE, on the toggle, rather than as a
+       margin on the breadcrumb list: the toggle is the navbar's first item and
+       always present, so the gap cannot silently disappear when the breadcrumb
+       list is empty. (The old `.header-toggle + *` rule below never matched --
+       the adjacent sibling is `.navbar-brand`, which is `display: none`.) */
+    margin-right: 12px;
     padding: 0;
     cursor: pointer;
     font-size: 22px;
@@ -380,16 +417,26 @@ body.naidapa-theme-active .navbar > .container > .navbar-brand.navbar-home {
     width: 0 !important;
 }
 
-/* The breadcrumb list is empty on a workspace/desk route but Bootstrap `.nav`
-   adds a left margin that shifts whatever follows it. */
-body.naidapa-theme-active .navbar > .container > .navbar-nav:empty {
+/* Frappe indents the breadcrumb list by `--margin-md` (15px) because in stock
+   Frappe the app logo sits in front of it. The logo is hidden here, so that
+   margin is just a second, invisible gutter stacked on top of the container's
+   -- the breadcrumb block would sit 15px further in than the control before it,
+   and 30px in when the toggle is absent. The list starts at the gutter; the
+   toggle supplies the gap (above). This also covers the empty-breadcrumb case
+   that the old `:empty` rule handled. */
+body.naidapa-theme-active .navbar > .container > #navbar-breadcrumbs {
     margin-left: 0 !important;
     padding-left: 0 !important;
 }
 
-/* Spacing between the toggle and whatever follows it. */
-body.naidapa-theme-active .navbar .header-toggle + * {
-    margin-left: 12px;
+/* No separator may precede the first crumb. Frappe puts the ">" chevron on
+   EVERY breadcrumb link (`#navbar-breadcrumbs a:before`), which reads correctly
+   only because the app logo precedes the list -- without it the trail opens
+   with a dangling ">" and no parent, i.e. exactly the "little space in front of
+   the menu" this block is about. The theme hides that logo, so the first
+   crumb drops the chevron and reads "Accounting > Sales Invoice". */
+body.naidapa-theme-active .navbar #navbar-breadcrumbs li:first-child > a::before {
+    display: none;
 }
 
 /* Hide the custom empty header since we are styling the native one */
@@ -426,6 +473,21 @@ nav.vertical-sidebar {
     padding-top: 0 !important;
     width: var(--naidapa-rail-width);
     z-index: 1030 !important;
+}
+
+/* Rail width and the content offset MOVE TOGETHER, and must only move when the
+   USER asks them to. During boot they must not animate at all.
+   Measured reason: the rail is server-rendered expanded and the stored state is
+   applied by naidapa_theme.js once Desk has booted (~1.4s in). With these two
+   transitions live during that change, the rail animated 286px -> 64px and the
+   toggle button travelled x=301 -> x=79 (222px) over ~200ms. A click is delivered
+   at the coordinates the pointer is at, so a click aimed during that window lands
+   where the button no longer is: it does nothing, logs nothing, and reads as
+   "the toggle is broken the first time" (reported 2026-09-16). It also made the
+   rail visibly jump on every page load.
+   `naidapa-sidebar-settled` is added by the theme JS one frame after the stored
+   state has been applied -- from then on, user toggles animate as before. */
+body.naidapa-sidebar-settled nav.vertical-sidebar {
     transition: width 0.3s ease;
 }
 
@@ -456,11 +518,18 @@ body.naidapa-theme-active .sticky-top {
     padding-left: var(--naidapa-rail-width);
     margin-top: 0 !important;
     padding-top: 0 !important;
-    transition: padding-left 0.3s ease;
     width: 100%;
     position: relative;
     display: flex;
     flex-direction: column;
+}
+
+/* The content's rail offset carries the navbar (and therefore the toggle button)
+   with it, so it follows the same rule as the rail itself: animate on user
+   toggles only, never during boot. See the comment on
+   `body.naidapa-sidebar-settled nav.vertical-sidebar` above. */
+body.naidapa-sidebar-settled .app-wrapper .app-content {
+    transition: padding-left 0.3s ease;
 }
 
 /* User Avatar circle in sidebar */
@@ -564,7 +633,18 @@ nav.vertical-sidebar .nav-profile-wrapper .user-avatar-circle {
         visibility: hidden !important;
     }
 
-    .app-wrapper .semi-nav .app-nav .main-nav li > a::after {
+    /* Icon-only rail: no room for the sub-menu chevron, so hide it.
+       `:not(:hover)` is load-bearing. The block further down ("Expand sidebar on
+       hover when collapsed") widens the rail back to 286px and restores the
+       `.menu-title`, the label and the tile padding -- but this chevron is a
+       `::after` hidden with `!important`, so it stayed hidden and the hovered
+       rail read as though Accounting/HR had no sub-menu at all (reported from a
+       screenshot: expanded rail, labels back, chevrons still missing). Keying the
+       hide to the ICON-ONLY condition -- narrow AND not hovered -- makes the
+       chevron come back with everything else on hover, with no override needed.
+       Same fix in the global rule further down; this one only has to stay
+       narrower than it (`.app-wrapper`-scoped, (0,4,2) vs (0,4,3)). */
+    .app-wrapper .semi-nav:not(:hover) .app-nav .main-nav li > a::after {
         display: none !important;
     }
 
@@ -853,6 +933,126 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* --------------------------------------------------------------------------
+   PAGE-LEVEL SIDEBAR: CLOSED BY DEFAULT, so the content column is full width.
+
+   `.sidebar-toggle-btn` is Frappe's own page-head control (page.html), and the
+   panel it drives is the per-page `.layout-main > .layout-side-section`: the form
+   sidebar (Assigned To / Attachments / Tags / Share) and, on list views, the
+   filter rail. It now ships CLOSED on every page; the user opens it with the
+   toggle whenever they want it.
+
+   WHY THIS IS NOT THE OLD BUG (see the `.desk-sidebar` note further up): that
+   regression hid this container unconditionally **and** hid
+   `.sidebar-toggle-btn` with it, so nothing could bring it back. This rule is
+   different in the three ways that matter:
+
+     * STATE-SCOPED -- it applies only while the user has NOT opened the panel
+       (`body:not(.naidapa-page-sidebar-open)`, a class our JS adds on the click).
+       Frappe's own tabbed/unsaved-doc logic and the toggle still behave normally
+       once the class is present.
+     * RECOVERABLE BY CONSTRUCTION -- `:has(.sidebar-toggle-btn)` limits it to
+       pages that actually render the toggle, so a page can never lose the panel
+       without also having the control that restores it. (Browsers without
+       `:has()` drop the rule and keep the panel open: a safe no-op, not a
+       breakage.)
+     * WIDTH-BASED, never `display: none` -- the container stays mounted and
+       functional for every feature that fills it, and the shared-UI guard
+       (myWorks/scripts/check_shared_ui_hides.py) stays green. Note this targets
+       the PAGE instance only: global search mounts its own `.layout-side-section`
+       inside the search dialog, which is untouched.
+
+   Desktop only, deliberately: below 992px Frappe turns this panel into an
+   off-canvas drawer whose own rules calculate its width and offsets.
+   -------------------------------------------------------------------------- */
+@media (min-width: 992px) {
+    body:not(.naidapa-page-sidebar-open) .page-container:has(.sidebar-toggle-btn) .layout-main > .layout-side-section,
+    /* ...and when the panel has NOTHING to show (JS adds this class after
+       checking: a workspace page's only sidebar content is `.desk-sidebar`, which
+       this theme hides), keep it collapsed even if the user's preference is
+       "open" -- otherwise the toggle would reveal a 249px empty band. The toggle
+       is removed on those pages too, so there is no control left pointing at it. */
+    body.naidapa-page-sidebar-empty .page-container .layout-main > .layout-side-section {
+        flex-basis: 0 !important;
+        max-width: 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Float the toggle at the left end of the CONTENT, with 8px of air.
+       
+       NOT over the menu rail. The v52 attempt put it at screen x=8, i.e. inside
+       the rail's column, and it was INVISIBLE AND UNCLICKABLE: `nav.vertical-sidebar`
+       is `position: fixed` with an OPAQUE background and `z-index: 1030`, while
+       `.page-head` is only `z-index: 6`, so the rail paints over anything parked
+       there -- in BOTH states. Verified with document.elementFromPoint() at the
+       button's centre, which returned `.simplebar-content` (rail collapsed) and
+       `.app-logo` (rail expanded) instead of the button. A geometry-only check
+       (getBoundingClientRect) reports x=8/y=68 either way and cannot catch this,
+       which is exactly how the broken version got shipped. Raising z-index would
+       only paint the control on top of the sidebar's own logo/icons.
+       
+       The page head's left edge already IS the rail's right edge (the app content
+       is offset by the rail width), so the button only has to give back part of the
+       15px Bootstrap column padding to land 8px past the rail: -15px + 8px. Left in
+       flow, so the title keeps its own gap after it, and it follows the rail
+       automatically when the rail expands to 286px. */
+    body.naidapa-theme-active .page-head .page-title > .sidebar-toggle-btn {
+        margin-left: -7px;
+    }
+
+    /* A barely-there 16px glyph with no hit area is hard to find, which is how
+       the control got reported as missing. Give it a real 28px button box with a
+       hover state; the icon inside stays Frappe's own `<<` / `>>`. */
+    body.naidapa-theme-active .page-head .sidebar-toggle-btn {
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        transition: background-color 0.15s ease;
+    }
+
+    body.naidapa-theme-active .page-head .sidebar-toggle-btn:hover {
+        background-color: var(--fg-hover-color, rgba(15, 98, 106, 0.08));
+    }
+
+    /* Collapsed rail: centre the menu tiles.
+       `nav .app-nav .main-nav > li` carries `padding: 0 .75rem` (12px each side),
+       which leaves only 63-24 = 39px of the 64px rail for a 52px tile. The tile
+       cannot be centred in that, so `margin: 6px auto` resolves to
+       `margin-left: 0; margin-right: -13px` and the tile overflows 13px to the
+       RIGHT -- measured: tile x=12..64 against a rail ending at x=64, i.e. welded
+       to the rail's edge with 12px of air on the left only. Zero the inset while
+       collapsed so the auto margins can centre it (6px each side). `:not(:hover)`
+       because hovering the rail re-expands it to 286px and then the inset is
+       wanted again for the labels. */
+    nav.semi-nav:not(:hover) .app-nav .main-nav > li,
+    body.sidebar-menu-opened nav.vertical-sidebar:not(:hover) .app-nav .main-nav > li {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+}
+
+/* Replace Frappe's "menu" placeholder (three bars) with the real state icon.
+   Frappe renders `.sidebar-toggle-placeholder` (≡) normally and only swaps in
+   `.sidebar-toggle-icon` on hover; the latter is the `<<` / `>>` chevron pair we
+   want, so show it permanently and drop the placeholder.
+   Which chevron is drawn is JS's job (sync_page_sidebar_toggle_icon), matching
+   Frappe's own convention: `#es-line-sidebar-collapse` (>>) while the panel is
+   open, `#es-line-sidebar-expand` (<<) while it is closed.
+   NOTE the selector deliberately says `.sidebar-toggle-placeholder`, not
+   `.sidebar-toggle-btn`: this is a hide, and the guard forbids hiding the
+   button. */
+.page-head .sidebar-toggle-placeholder {
+    display: none !important;
+}
+
+.page-head .sidebar-toggle-btn .sidebar-toggle-icon {
+    display: block !important;
+}
+
 /* Sidebar Toggle and Responsiveness */
 @media (min-width: 992px) {
 
@@ -873,8 +1073,17 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
         width: 100%;
     }
 
-    /* On mobile, sidebar-menu-opened shows the sidebar */
-    body.sidebar-menu-opened nav {
+    /* On narrow viewports the sidebar is an off-canvas DRAWER: it slides in only
+       when the user has opened it. This keyed off `sidebar-menu-opened`, which
+       means CLOSED (see the naming note in naidapa_theme.js) -- i.e. the 286px
+       rail was pinned open over the content exactly when the sidebar was supposed
+       to be closed. Measured at 414px wide: the rail covered x 0..286 of a 414px
+       viewport, opaque, `z-index 1020`, so it also buried the page-head
+       `.sidebar-toggle-btn` (elementFromPoint at the button's centre returned the
+       rail's logo) and the button could not be clicked on a phone. Keying off the
+       intent class fixes the overlap and makes the toggle reachable again.
+       `nav { margin-left: -286px }` above is what keeps it off-canvas by default. */
+    body.naidapa-sidebar-open nav {
         margin-left: 0;
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
@@ -893,6 +1102,22 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
     box-shadow: var(--box-shadow) !important;
     transition: var(--transition-fast);
     margin-bottom: 24px !important;
+}
+
+/* A SPACER IS NOT A CARD. Frappe's `.widget` gives every widget a white card
+   background (`--card-bg: var(--fg-color)`) and sizes `.widget.spacer` to 18px
+   as a pure layout gap. In stock Frappe nothing shows, because the page behind
+   it is white too -- but this theme tints the desk page (`.page-container {
+   background: var(--np-bg) }`, #f5fbfb), so every spacer became a stray empty
+   white bar: measured on /app/home (1), /app/buying (2), /app/selling (2),
+   /app/recruitment (3), each 1300+px wide x 18px, `rgb(255,255,255)`, 12px
+   radius -- the "white empty card" reported on 2026-09-16. They were the ONLY
+   empty painted widgets on those pages. Height is intentionally left to
+   Frappe's own rule so the layout rhythm is unchanged. */
+.widget.spacer {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
 }
 
 .widget:hover,
@@ -1206,9 +1431,24 @@ nav .app-nav .main-nav>li:not(.menu-title)>a[aria-expanded="true"]::after {
     transform: translateY(-50%) rotate(0deg) !important;
 }
 
-/* Hide the dropdown arrow entirely when the sidebar is in semi-nav state */
-nav.semi-nav .app-nav .main-nav>li:not(.menu-title)>a::after {
-    display: none !important;
+/* Hide the dropdown arrow while the sidebar is the ICON-ONLY rail -- narrow and
+   not hovered. Both halves matter:
+     * `:not(:hover)` -- hovering widens the rail back to 286px and brings the
+       labels back, so the chevron has to come back with them. Without this the
+       hovered rail showed "Accounting" and "HR" with no sub-menu affordance at
+       all, which is exactly the reported bug.
+     * `@media (min-width: 992px)` -- the hover-widen behaviour only exists on
+       desktop. Below 992px the rail is an off-canvas drawer: it opens as a
+       full-width list WITH labels (the label-hiding rules are desktop-scoped
+       too), so a chevron-less list there was just as misleading, and no hover
+       ever fires to restore it. Scoping the hide to where the collapse exists
+       fixes that case as well.
+   This is the higher-specificity twin of the `.app-wrapper .semi-nav:not(:hover)`
+   rule inside the desktop block; both say the same thing. */
+@media (min-width: 992px) {
+    nav.semi-nav:not(:hover) .app-nav .main-nav>li:not(.menu-title)>a::after {
+        display: none !important;
+    }
 }
 
 .sidebar-item-icon {
