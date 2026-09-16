@@ -1083,8 +1083,35 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
        rail's logo) and the button could not be clicked on a phone. Keying off the
        intent class fixes the overlap and makes the toggle reachable again.
        `nav { margin-left: -286px }` above is what keeps it off-canvas by default. */
-    body.naidapa-sidebar-open nav {
+    /* NOTE the selectors: the rail's base rule is declared as
+       `body.naidapa-theme-active nav.vertical-sidebar, nav.vertical-sidebar`
+       (naidapa_theme.css ~line 465), so its matching selector is (0,2,2) and it
+       pins `top: 0 !important` / `height: 100vh !important`. A plain
+       `body.naidapa-sidebar-open nav` (0,1,2) LOSES that fight -- measured: the
+       first attempt kept `top: 0px`. The second selector below (0,3,2) beats it
+       outright; the first is kept so the drawer is also placed correctly during
+       the first frames, before `naidapa-theme-active` is added by JS. */
+    body.naidapa-sidebar-open nav.vertical-sidebar,
+    body.naidapa-theme-active.naidapa-sidebar-open nav.vertical-sidebar {
         margin-left: 0;
+        /* ...and it must START BELOW THE APP BAR, or it covers the only control
+           that can close it.
+           The rail is `position: fixed` at `z-index: 1030` and the navbar is
+           `1020`, and on a phone both toggles sit inside the drawer's footprint
+           (navbar toggle x≈30, page toggle x≈30) -- so with the drawer open they
+           were PAINTED OVER and unclickable. Measured on a 414px viewport:
+           after opening, `elementFromPoint` at the toggle's centre returned the
+           drawer's own logo IMG (`clickable=false`), and a second tap did nothing
+           (`drawerOpen` stayed true) -- a phone user who opened the sidebar could
+           not close it again. Reported 2026-09-16 and reproduced exactly.
+           Dropping the drawer's top edge under the navbar removes the overlap, and
+           it also keeps the app bar (search, notifications, user menu, the toggle
+           itself) usable while the drawer is open -- the usual drawer-under-app-bar
+           arrangement. The drawer's own logo just moves down with it.
+           The base rule pins `height: 100vh !important` and `bottom: 0`, and with
+           top+bottom+height all set the height wins, so it has to be restated. */
+        top: var(--navbar-height, 48px) !important;
+        height: calc(100vh - var(--navbar-height, 48px)) !important;
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
 }
