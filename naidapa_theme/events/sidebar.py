@@ -113,6 +113,20 @@ def passes_role_gate(row):
     return bool(allowed & set(frappe.get_roles()))
 
 
+def literal_roles(user):
+    """A user's actually-assigned roles, unlike ``frappe.get_roles()``.
+
+    ``frappe.get_roles("Administrator")`` returns EVERY enabled role on the
+    site (55 on this bench) because Administrator bypasses permission checks
+    entirely -- it is not a real role assignment. Using that inflated list to
+    pick a Menu Profile means Administrator always matches every role-scoped
+    profile that exists and gets whichever has the highest ``priority``,
+    regardless of which one actually makes sense for it. Has Role rows are
+    the ground truth of what was actually assigned.
+    """
+    return set(frappe.get_all("Has Role", filters={"parent": user, "parenttype": "User"}, pluck="role"))
+
+
 def is_privileged():
     """Administrator, or anyone trusted to maintain the menu itself."""
     return frappe.session.user == "Administrator" or "Workspace Manager" in frappe.get_roles()
@@ -136,17 +150,17 @@ def build_route(row):
 def build_custom_menu(workspace_orders):
     """Render Theme Settings -> Workspace Order into sidebar items.
 
-    Visible to Administrator and Workspace Manager in full; for everyone else
-    each row must be enabled, pass its role gate, and point at something the
-    user can actually read.
+    Visible to Administrator and Workspace Manager in full (they skip the row's
+    own role gate / permission check); everyone else's rows must be enabled,
+    pass their role gate, and point at something the user can actually read.
 
-    Administrator gets a FLAT list: the workspace_group headings exist to make
-    a curated subset navigable, and collapsing a heading hides items behind a
-    click. Administrator sees every item at once instead. Restricted users keep
-    the grouped view, which is the structure the groups were designed for.
+    Grouping always applies now: each ``workspace_orders`` list here comes from
+    exactly one resolved Menu Profile (see get_active_menu_profile), so there is
+    no longer a "curated subset vs. everything" distinction to flatten away for
+    Administrator -- Administrator just sees whichever profile it resolved to,
+    grouped the same way anyone else with that profile would see it.
     """
     privileged = is_privileged()
-    ungrouped = frappe.session.user == "Administrator"
     menu_items = []
     groups_map = {}
 
@@ -182,7 +196,7 @@ def build_custom_menu(workspace_orders):
             "icon_name": icon,
         }
 
-        group_name = "" if ungrouped else (row.workspace_group or "").strip()
+        group_name = (row.workspace_group or "").strip()
 
         if group_name:
             if group_name in groups_map:
@@ -230,7 +244,7 @@ def get_active_menu_profile():
     if user_profile:
         return frappe.get_cached_doc("Menu Profile", user_profile)
 
-    roles = frappe.get_roles(user)
+    roles = literal_roles(user)
     role_profiles = frappe.get_all(
         "Menu Profile",
         filters={"applies_to": "Role", "role": ["in", roles], "enabled": 1},
