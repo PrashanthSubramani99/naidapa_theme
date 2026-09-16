@@ -170,17 +170,72 @@
     };
 
     naidapa_theme.bind_page_sidebar_toggle = function () {
-        // Delegated on `document` on purpose: a delegated listener runs LAST in
-        // the bubble phase, i.e. after Frappe's own handler bound directly to the
-        // button, which is what lets set_page_sidebar_open() correct it.
+        const handler = function () {
+            // Toggle our own intent, never the DOM: reading visibility here would
+            // be wrong, because the panel is still collapsed by width at this point
+            // in the click.
+            naidapa_theme.set_page_sidebar_open(!naidapa_theme.page_sidebar_is_open());
+        };
+        naidapa_theme.bind_toggle('.page-head .sidebar-toggle-btn', 'naidapa_page_sidebar', handler);
+    };
+
+    // Bind a toggle handler BOTH delegated (document) and directly on the element.
+    //
+    // Why both, and why this is not belt-and-braces paranoia -- MEASURED 2026-09-16,
+    // on /app/buying with a real click:
+    //
+    //   doc-capture : target=<use>, isConnected=true,  chain "use < svg < SPAN.sidebar-toggle-icon < BUTTON..."
+    //   button-mutation : childList, removed "#text,svg,#text", added "svg"   <-- Frappe
+    //                     re-renders the button's inner markup DURING the click
+    //   doc-bubble  : target=<use>, isConnected=FALSE, chain "use < svg"
+    //
+    // A delegated selector is matched by walking UP from event.target, so once that
+    // target is detached the selector stops matching and the handler never runs --
+    // silently, with no error. Frappe's own handler (bound directly to the button)
+    // still fires, so the panel just re-collapsed and the button looked dead: the
+    // reported "the toggle button is not working".
+    //
+    // A listener registered ON the button is part of the event path computed at
+    // dispatch time, so it fires whether or not the target is still attached. It is
+    // also registered after Frappe's own (which runs at page setup), so it still
+    // runs last and can normalise the inline display Frappe leaves behind.
+    //
+    // Both bindings seeing the same click is deduped on the NATIVE event, so the
+    // state can never be toggled twice by one click.
+    naidapa_theme.bind_toggle = function (selector, namespace, handler) {
+        const guarded = function (e) {
+            const native = (e && e.originalEvent) || e;
+            if (native && native.__naidapaToggleHandled) return;
+            if (native) native.__naidapaToggleHandled = true;
+            return handler.call(this, e);
+        };
         $(document)
-            .off('click.naidapa_page_sidebar', '.page-head .sidebar-toggle-btn')
-            .on('click.naidapa_page_sidebar', '.page-head .sidebar-toggle-btn', function () {
-                // Toggle our own intent, never the DOM: reading visibility here
-                // would be wrong, because the panel is still collapsed by width at
-                // this point in the click.
-                naidapa_theme.set_page_sidebar_open(!naidapa_theme.page_sidebar_is_open());
-            });
+            .off('click.' + namespace, selector)
+            .on('click.' + namespace, selector, guarded);
+        $(selector)
+            .off('click.' + namespace + '_direct')
+            .on('click.' + namespace + '_direct', guarded);
+    };
+
+    // Frappe's own hover tooltip, on Frappe's own button.
+    //
+    // `page.js setup_sidebar_toggle()` does `sidebar_toggle.attr("title", "Toggle
+    // Sidebar")` and then `.tooltip({trigger: 'hover'})`, so this button pops a
+    // "Toggle Sidebar" bubble on hover exactly like the theme rail's did. Removed on
+    // request (2026-09-16) together with the rail's -- the accessible name is left
+    // intact via aria-label, so only the visual popup goes. Frappe re-adds the title
+    // whenever it sets a page up, hence this runs on every patch pass; the guard
+    // keeps it from disposing the tooltip over and over.
+    naidapa_theme.remove_page_toggle_tooltip = function () {
+        const $btn = $('.page-head .sidebar-toggle-btn');
+        if (!$btn.length) return;
+        if (!$btn.attr('title') && !$btn.attr('data-original-title')) return;
+        $btn.removeAttr('title').removeAttr('data-original-title');
+        try {
+            $btn.tooltip('dispose');   // Bootstrap 5
+        } catch (e) {
+            try { $btn.tooltip('destroy'); } catch (e2) { /* no tooltip library */ }
+        }
     };
 
     // Does the panel actually have anything to SHOW?
@@ -540,6 +595,12 @@
             // rewrites its icon on its own clicks, so re-derive the chevron from
             // what is actually on screen on every pass (idempotent).
             naidapa_theme.sync_page_sidebar_toggle_presence,
+            // Re-assert the page toggle's bindings every pass: the button is
+            // removed and re-created from stored HTML when the panel goes empty and
+            // comes back, and a re-created node carries neither Frappe's bindings
+            // nor ours (idempotent -- bind_toggle off()s first).
+            naidapa_theme.bind_page_sidebar_toggle,
+            naidapa_theme.remove_page_toggle_tooltip,
             naidapa_theme.update_sidebar_logo,
             naidapa_theme.bind_collapse_events,
             naidapa_theme.highlight_active_route,
@@ -624,28 +685,21 @@
             $('.navbar-brand').before(toggle_html);
         }
 
-        // Bound ONCE, DELEGATED, and re-asserted on every pass -- the same shape
-        // `bind_collapse_events` and the page-sidebar toggle already use.
-        //
-        // A direct `$('.header-toggle').on('click', ...)` ties the handler to one
-        // DOM node. Anything that re-renders the navbar (or re-injects the button)
-        // then leaves a button that looks and hovers perfectly but is DEAD, with
-        // no error to notice. Delegation moves the handler to `document`, so it
-        // survives the node being replaced. `.off()` first keeps it idempotent --
-        // this runs on every view render.
-        $(document)
-            .off('click.naidapa_rail_toggle', '.header-toggle')
-            .on('click.naidapa_rail_toggle', '.header-toggle', function () {
-                // Clicking TOGGLES: if the rail is presently compacted the click
-                // expands it. BOTH collapsed markers are checked, not just the
-                // body class: `apply_sidebar_state()` writes both, and the inline
-                // script in www/app.html writes both before boot, so reading
-                // either one alone is a needless single point of failure.
-                const currently_collapsed =
-                    $('body').hasClass('sidebar-menu-opened') ||
-                    $('nav.vertical-sidebar').hasClass('semi-nav');
-                naidapa_theme.set_sidebar_open(currently_collapsed);
-            });
+        // Bound ONCE, DELEGATED + DIRECT, and re-asserted on every pass (see
+        // `bind_toggle` for why the direct one is required: Frappe re-renders
+        // button internals during a click, which detaches the clicked node and
+        // silently defeats a delegated-only selector).
+        naidapa_theme.bind_toggle('.header-toggle', 'naidapa_rail_toggle', function () {
+            // Clicking TOGGLES: if the rail is presently compacted the click
+            // expands it. BOTH collapsed markers are checked, not just the
+            // body class: `apply_sidebar_state()` writes both, and the inline
+            // script in www/app.html writes both before boot, so reading
+            // either one alone is a needless single point of failure.
+            const currently_collapsed =
+                $('body').hasClass('sidebar-menu-opened') ||
+                $('nav.vertical-sidebar').hasClass('semi-nav');
+            naidapa_theme.set_sidebar_open(currently_collapsed);
+        });
 
         // Always re-sync: the icon must match current state on every pass, not
         // only the first time the button is injected.
