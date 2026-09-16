@@ -62,8 +62,14 @@ app_license = "mit"
 # not mention is hidden. So it is currently correct-but-basic; the richer
 # behaviour and the per-tenant question it raises are recorded as Slice 4b in
 # myWorks/docs/theme-audit/2026-09-14-naidapa-theme-product-audit.md.
+#
+# Per-user/per-role menu and branding now live in `Menu Profile` instead
+# (naidapa_theme.events.sidebar.get_active_menu_profile): Theme Settings stays
+# the site-wide default (and the login page's source, since login has no user
+# identity to key a profile on), Menu Profile is the opt-in override.
 fixtures = [
     {"doctype": "Theme Settings"},
+    {"doctype": "Menu Profile"},
 ]
 
 # Apps

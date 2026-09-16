@@ -211,16 +211,44 @@ def build_custom_menu(workspace_orders):
     return menu_items
 
 
+def get_active_menu_profile():
+    """Resolve the Menu Profile for the current user, if any.
+
+    Resolution order: an enabled profile targeting this exact User wins outright;
+    otherwise the highest-priority enabled profile targeting one of the user's
+    Roles; otherwise None, meaning "no personal/role menu -- use the plain
+    default ERPNext sidebar" (deliberate: menu customization here is opt-in per
+    user/role, not a global default everyone inherits).
+    """
+    user = frappe.session.user
+    if user == "Guest":
+        return None
+
+    user_profile = frappe.db.get_value(
+        "Menu Profile", {"applies_to": "User", "user": user, "enabled": 1}, "name"
+    )
+    if user_profile:
+        return frappe.get_cached_doc("Menu Profile", user_profile)
+
+    roles = frappe.get_roles(user)
+    role_profiles = frappe.get_all(
+        "Menu Profile",
+        filters={"applies_to": "Role", "role": ["in", roles], "enabled": 1},
+        fields=["name"],
+        order_by="priority desc",
+        limit=1,
+    )
+    if role_profiles:
+        return frappe.get_cached_doc("Menu Profile", role_profiles[0].name)
+
+    return None
+
+
 @frappe.whitelist()
 def get_desktop_pages():
-    try:
-        theme_settings = frappe.get_cached_doc("Theme Settings")
-        workspace_orders = theme_settings.get("workspace_order") or []
-    except Exception:
-        workspace_orders = []
-
-    if workspace_orders:
-        return {"custom_menu": True, "items_list": build_custom_menu(workspace_orders)}
+    profile = get_active_menu_profile()
+    if profile and profile.get("workspace_order"):
+        return {"custom_menu": True, "items_list": build_custom_menu(profile.workspace_order)}
 
     # Default Fallback: Standard Desktop Sidebar Pages
     pages_data = get_workspace_sidebar_items()
@@ -262,8 +290,20 @@ def boot_session(bootinfo):
     # correct logo with the theme's own -- which is what made the Navbar Settings logo
     # look like it was being ignored in the desk while the login page obeyed it.
     try:
-        bootinfo.theme_settings = frappe.get_cached_doc("Theme Settings").as_dict()
+        theme_settings = frappe.get_cached_doc("Theme Settings").as_dict()
     except Exception:
-        bootinfo.theme_settings = {}
+        theme_settings = {}
 
-    bootinfo.sidebar_logo = get_logo()
+    # A matched Menu Profile's branding fields (only the ones it actually set)
+    # override the site-wide Theme Settings defaults for this user. Login-page
+    # fields (skin, login_tag, ...) are never overridden -- login happens before
+    # a user identity exists, so they must stay global.
+    profile = get_active_menu_profile()
+    if profile:
+        for field in ("primary_color", "secondary_color", "sidebar_logo", "title", "sidebar_text"):
+            value = profile.get(field)
+            if value:
+                theme_settings[field] = value
+
+    bootinfo.theme_settings = theme_settings
+    bootinfo.sidebar_logo = (profile and profile.get("sidebar_logo")) or get_logo()
