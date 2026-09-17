@@ -12,6 +12,31 @@ from naidapa_theme.events.sidebar import get_desktop_pages
 SCRIPT_TAG_PATTERN = re.compile(r"\<script[^<]*\</script\>")
 CLOSING_SCRIPT_TAG_PATTERN = re.compile(r"</script\>")
 
+
+def get_app_name():
+    """The name shown in the browser tab and desk shell.
+
+    Never falls back to "Frappe" -- that is the framework's name, not a
+    tenant's identity, and showing it (or any vendor name) is exactly the
+    kind of leak the theme must not ship (see the per-tenant branding
+    principle in myWorks/docs/theme-audit/2026-09-14-naidapa-theme-product-audit.md).
+    Order: the tenant's own explicit setting, then their own Company name
+    (already configured via the ERPNext setup wizard on every real site, so
+    this is free and genuinely theirs), then a neutral generic label.
+    """
+    explicit = frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name")
+    if explicit and explicit != "Frappe":
+        return explicit
+
+    default_company = frappe.defaults.get_global_default("company")
+    if default_company:
+        company_name = frappe.db.get_value("Company", default_company, "company_name")
+        if company_name:
+            return company_name
+
+    return "ERP"
+
+
 def get_context(context):
     if frappe.session.user == "Guest":
         frappe.throw(_("Log in to access this page."), frappe.PermissionError)
@@ -55,9 +80,7 @@ def get_context(context):
             "csrf_token": csrf_token,
             "google_analytics_id": frappe.conf.get("google_analytics_id"),
             "google_analytics_anonymize_ip": frappe.conf.get("google_analytics_anonymize_ip"),
-            "app_name": (
-                frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or "Frappe"
-            ),
+            "app_name": get_app_name(),
             "menu_data": get_desktop_pages(),
             "pages": (get_desktop_pages().get("pages", []) if isinstance(get_desktop_pages(), dict) else get_desktop_pages()),
         }
