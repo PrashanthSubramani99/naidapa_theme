@@ -73,6 +73,9 @@
         // preference and must stay collapsed without writing one.
         naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open());
         naidapa_theme.apply_page_sidebar_state(naidapa_theme.page_sidebar_is_open());
+        // Before the first patch pass, in case the icon sprite was already
+        // fetched and inserted while the document was still parsing.
+        naidapa_theme.apply_panel_toggle_icon();
         naidapa_theme.bind_page_sidebar_toggle();
         naidapa_theme.apply_theme_colors();
         naidapa_theme.run_patches();
@@ -125,6 +128,14 @@
     // Derived from the DOM rather than from our stored preference, because
     // Frappe also hides the panel by itself (e.g. on an unsaved document it adds
     // `.hide-sidebar`), and the button must describe what is on screen.
+    //
+    // These two ids now render two DIFFERENT panel glyphs (apply_panel_toggle_icon
+    // below): a hollow left column when closed, a filled one when open -- so this
+    // alternation still changes what the user sees, same as it always did for
+    // Frappe's own chevrons. This also means that if the sprite symbols are ever
+    // not ours (a Frappe upgrade renaming them, a page that never loads the
+    // sprite), the button falls back to Frappe's own state-correct chevrons
+    // rather than to a blank or wrong-direction icon.
     naidapa_theme.sync_page_sidebar_toggle_icon = function () {
         $('.page-head .sidebar-toggle-btn .sidebar-toggle-icon use').attr(
             'href',
@@ -137,6 +148,98 @@
     naidapa_theme.apply_page_sidebar_state = function (is_open) {
         $('body').toggleClass('naidapa-page-sidebar-open', is_open);
         naidapa_theme.sync_page_sidebar_toggle_icon();
+    };
+
+    // -------------------------------------------------------------------------
+    // PAGE-HEAD TOGGLE ICON: Frappe's `<<` / `>>` chevrons -> a "panel" icon
+    // -------------------------------------------------------------------------
+    // On request (2026-09-16) the page-sidebar toggle draws a panel glyph
+    // (a rounded frame with a divided-off left column) instead of the double
+    // chevron. First shipped as ONE glyph in both states; user feedback
+    // (2026-09-16, follow-up) was that this reads as broken -- the button never
+    // visibly reacts to its own click, so it looks like it "unconditionally"
+    // does the same thing regardless of state. Kept the panel family (not a
+    // revert to chevrons) but now the LEFT COLUMN is filled solid when the panel
+    // is open (clicking closes it) and left hollow when closed (clicking opens
+    // it) -- the same open/closed convention Frappe's own chevrons encoded,
+    // expressed in the new glyph instead of abandoning state entirely.
+    //
+    // WHY THE SPRITE SYMBOLS AND NOT THE `<use href>`:
+    // Frappe renders this icon from two places, and one of them rewrites the
+    // button's inner markup on EVERY click:
+    //   * `frappe/public/js/frappe/ui/page.html` server-templates the initial
+    //     `<use href="#es-line-sidebar-collapse">`
+    //   * `page.js update_sidebar_icon()` re-creates it from
+    //     `frappe.utils.icon("es-line-sidebar-expand" | "es-line-sidebar-collapse")`
+    //     (:240) -- so anything that just points the existing `<use>` elsewhere
+    //     is undone by Frappe on the next click, and by any other Frappe re-render
+    //     (resize, page re-setup) that our patch passes never see.
+    // Redefining the two SYMBOLS leaves every one of those paths drawing our path
+    // data, with no re-sync race to lose: the initial server markup, Frappe's own
+    // re-render, and our own passes all resolve to the same two ids.
+    //
+    // Scoped by evidence, not by hope: `grep -rn "es-line-sidebar-expand"` over
+    // frappe + erpnext matches exactly those two files -- these symbols are used
+    // by nothing but this one button, so redefining them cannot leak into other
+    // Desk UI. The sprite itself is fetched into `#all-symbols` by
+    // `www/app.html` AFTER this script loads, so the pass has to be repeatable:
+    // it is in run_patches() (every view render + every MutationObserver pass,
+    // and the sprite insertion is itself a body mutation) and runs again in
+    // setup() for the case where the sprite won the race.
+    //
+    // Geometry is NOT hand-waved -- it was fitted to the reference image the icon
+    // was requested from (18x18px ink, 2px stroke) by rendering candidates in
+    // Chromium and matching the alpha-weighted signature: divider centreline at
+    // 0.38 of the frame's width, stroke 0.083 x width, square frame. In the 16px
+    // box the espresso sprite uses, that is a 12.4 frame (outer edges 1..15, the
+    // same frame Frappe's own `es-line-*` icons occupy) with rx 1.25, stroke 1.05
+    // and the divider at x=6.55 -- measured match: divider 0.381 vs 0.382, stroke
+    // ratio 0.0836 vs 0.0836.
+    //
+    // `fill="none"` on the frame and divider is load-bearing: `.es-icon` sets
+    // `fill: var(--icon-stroke)`, so an unfilled attribute would paint the whole
+    // frame as a solid block. The explicit `stroke` is what colours them (a
+    // presentation attribute on the shape beats the inherited
+    // `stroke: var(--icon-fill)` from `.es-icon`),
+    // and it is the SAME variable the chevrons were filled with, so the icon keeps
+    // the theme's icon colour in light and dark mode alike.
+    const PANEL_ICON_FRAME =
+        '<rect x="1.8" y="1.8" width="12.4" height="12.4" rx="1.25" fill="none" ' +
+        'stroke="var(--icon-stroke)" stroke-width="1.05"/>' +
+        '<line x1="6.55" y1="1.8" x2="6.55" y2="14.2" fill="none" ' +
+        'stroke="var(--icon-stroke)" stroke-width="1.05"/>';
+
+    // CLOSED (expand symbol -- clicking OPENS the panel): the left column is
+    // hollow, matching the frame -- there is nothing on screen yet.
+    const PANEL_ICON_MARKUP_EXPAND = PANEL_ICON_FRAME;
+
+    // OPEN (collapse symbol -- clicking CLOSES the panel): the left column is
+    // filled solid. Sits UNDER the divider line (drawn first, same frame), so
+    // the divider stroke still reads crisply on top of the fill. Right edge of
+    // the fill is intentionally square (only the outer frame corners are
+    // rounded) -- it butts against the divider, not the outer border, so a
+    // square inner edge there is correct, not a rendering artifact.
+    const PANEL_ICON_MARKUP_COLLAPSE =
+        '<rect x="1.8" y="1.8" width="4.75" height="12.4" rx="1.25" ' +
+        'fill="var(--icon-stroke)" stroke="none"/>' + PANEL_ICON_FRAME;
+
+    const PANEL_ICON_VARIANTS = {
+        'es-line-sidebar-expand': PANEL_ICON_MARKUP_EXPAND,
+        'es-line-sidebar-collapse': PANEL_ICON_MARKUP_COLLAPSE,
+    };
+
+    naidapa_theme.apply_panel_toggle_icon = function () {
+        Object.keys(PANEL_ICON_VARIANTS).forEach(function (id) {
+            const symbol = document.querySelector('symbol#' + id);
+            if (!symbol) return;                                   // sprite not fetched yet
+            if (symbol.getAttribute('data-naidapa-panel') === id) return;   // idempotent
+            symbol.setAttribute('viewBox', '0 0 16 16');
+            symbol.setAttribute('fill', 'none');
+            symbol.innerHTML = PANEL_ICON_VARIANTS[id];
+            // Marked LAST, so a throw halfway through leaves the symbol unmarked
+            // and the next pass retries it instead of leaving a broken icon.
+            symbol.setAttribute('data-naidapa-panel', id);
+        });
     };
 
     // Frappe's click handler (page.js setup_sidebar_toggle) flips the panel with
@@ -250,11 +353,22 @@
     //                and a toggle over it is a control that shifts the page and
     //                reveals an empty band.
     //
-    // A box test alone is not enough either: the wrapper (`.list-sidebar`) still
-    // measures 249x787 on a workspace page, because it is the CHILD that is
-    // hidden. So: walk the tree, skip the theme-hidden subtree entirely, and look
-    // for something that paints (text leaf, icon, image or control) at a real
-    // size. Screen-reader-only nodes are excluded -- they are deliberately 1px.
+    // REBUILT 2026-09-16 (follow-up): the previous version measured PAINT
+    // (getClientRects/getBoundingClientRect) on a walk of the whole subtree,
+    // which is only correct once the browser has actually laid the frame out
+    // -- and that is exactly why `sync_page_sidebar_toggle_presence()` below
+    // used to need a 1.5s "stayed empty" debounce, which itself lost the race
+    // against the Home workspace's slower, burstier load (onboarding steps,
+    // shortcut/number cards, charts): the toggle stayed visible over a
+    // genuinely empty panel.
+    //
+    // This version is a pure DOM-STRUCTURE test -- classList and direct
+    // children only, no layout measurement -- so it is correct the instant
+    // the relevant elements exist, with no frame to wait for and therefore no
+    // debounce needed. It exactly mirrors the CSS collapse rule in
+    // naidapa_theme.css (`@media (min-width: 992px)`, the
+    // `:not(:has(...))` selector), so the button's presence and the panel's
+    // width can never disagree.
     naidapa_theme.page_sidebar_has_content = function () {
         const panel = document.querySelector('.layout-main > .layout-side-section');
         if (!panel) return false;
@@ -266,54 +380,31 @@
         // is saved (at which point Frappe removes the class and the toggle returns).
         if (panel.classList.contains('hide-sidebar')) return false;
 
-        const paints = (el) => {
-            if (el.classList.contains('sr-only') || el.classList.contains('sr-only-focusable')) {
-                return false;
-            }
-            if (!el.getClientRects().length) return false; // display:none / detached
-            const box = el.getBoundingClientRect();
-            if (box.width < 5 || box.height < 5) return false;
-            const tag = el.tagName;
-            if (tag === 'SVG' || tag === 'IMG' || tag === 'INPUT' || tag === 'BUTTON' ||
-                tag === 'SELECT' || tag === 'TEXTAREA') {
-                return true;
-            }
-            return el.children.length === 0 && (el.textContent || '').trim().length > 0;
-        };
-
-        const walk = (node) => {
-            for (const el of node.children) {
-                // The workspace rail the theme replaces with its own; skipping the
-                // subtree also keeps this cheap (1100 nodes on a workspace page).
-                if (el.classList.contains('desk-sidebar')) continue;
-                if (paints(el) || walk(el)) return true;
+        // A direct child is "ignorable" -- contributes nothing visible -- if it
+        // is Frappe's sr-only skip-link (ui/page.js:165-181, appended straight
+        // to this container), a bare `.desk-sidebar` (the workspace rail this
+        // theme hides, `body.naidapa-theme-active .desk-sidebar`), or a
+        // `.list-sidebar` wrapper holding nothing but one (Frappe's own
+        // workspace sidebar markup, views/workspace/workspace.js:57-62 --
+        // `.list-sidebar` doubles as the REAL list-view filter rail elsewhere,
+        // so it is only ignorable when everything inside it is `.desk-sidebar`).
+        // A real `.list-sidebar`/`.form-sidebar` can still be legitimately
+        // hidden at this viewport (the list filter rail is `hidden-xs` on a
+        // phone; Frappe's mobile equivalent is the toolbar's "Filter" button,
+        // not this toggle), so that is checked too.
+        const is_ignorable = (el) => {
+            if (el.classList.contains('sr-only') || el.classList.contains('sr-only-focusable')) return true;
+            if (el.classList.contains('desk-sidebar')) return true;
+            if (el.classList.contains('list-sidebar') || el.classList.contains('form-sidebar')) {
+                if (Array.from(el.children).every((child) => child.classList.contains('desk-sidebar'))) {
+                    return true;
+                }
+                return getComputedStyle(el).display === 'none';
             }
             return false;
         };
 
-        if (walk(panel)) return true;
-
-        // SECOND PASS -- content that exists but is currently HIDDEN BY FRAPPE,
-        // or simply has not been painted yet (the form sidebar is filled
-        // asynchronously by form_sidebar.refresh(), after the view's make()).
-        // A paint test alone is therefore not enough, and getting this wrong
-        // removed the toggle from forms: the widgets (Assigned To, Attachments,
-        // Tags, Share) are in the DOM before they are shown.
-        //
-        // So: a sidebar container holding something outside the theme-hidden
-        // `.desk-sidebar` subtree counts as content. That keeps a workspace page
-        // out (its `.list-sidebar` contains nothing but `.desk-sidebar`), which is
-        // the case the paint test is there for, while the unsaved-document case is
-        // already handled above by Frappe's own `.hide-sidebar` marker.
-        //
-        // The container must also be RENDERED at this viewport: on a phone the
-        // list filter rail is `hidden-xs` (display:none), and tapping a toggle for
-        // it does nothing at all -- Frappe's mobile equivalent is the "Filter"
-        // button in the list toolbar.
-        return Array.from(panel.querySelectorAll('.form-sidebar, .list-sidebar')).some((container) => {
-            if (getComputedStyle(container).display === 'none') return false;
-            return Array.from(container.querySelectorAll('*')).some((node) => !node.closest('.desk-sidebar'));
-        });
+        return !Array.from(panel.children).every(is_ignorable);
     };
 
     // Frappe's page template renders the toggle; keep a copy so it can be put
@@ -324,8 +415,21 @@
     // Keep the control and the panel in step with each other:
     //   no content in the panel -> no toggle (Frappe itself removes it when a page
     //   sets disable_sidebar_toggle), and the panel stays collapsed
-    //   (body.naidapa-page-sidebar-empty) so nothing shifts and no empty band
-    //   appears even if the stored preference is "open".
+    //   (body.naidapa-page-sidebar-empty, backstopped by a same-frame CSS rule
+    //   that needs no class at all -- see naidapa_theme.css) so nothing shifts
+    //   and no empty band appears even if the stored preference is "open".
+    //
+    // NO DEBOUNCE, on purpose (removed 2026-09-16 follow-up): the old version
+    // waited 1.5s for the panel to "stay empty" before acting, because its
+    // content test measured PAINT and could be transiently wrong before the
+    // browser laid a fresh frame out. `page_sidebar_has_content()` is now a
+    // pure DOM-structure test with no such window, so this can act on every
+    // pass immediately -- and does, since the MutationObserver that drives
+    // `run_patches()` re-fires this the moment real content (e.g. the form
+    // sidebar, filled in asynchronously after the view's make()) actually
+    // lands, restoring the button from the cached `page_toggle_html` and
+    // re-binding it via `bind_page_sidebar_toggle()` (next step in
+    // `run_patches()`), the same way a freshly re-inserted button always was.
     naidapa_theme.sync_page_sidebar_toggle_presence = function () {
         const panel = document.querySelector('.layout-main > .layout-side-section');
         if (!panel) return;
@@ -336,38 +440,13 @@
         if ($btn.length && !page_toggle_html) page_toggle_html = $btn[0].outerHTML;
 
         if (has_content) {
-            naidapa_theme._page_sidebar_empty_since = 0;
-            clearTimeout(naidapa_theme._page_sidebar_empty_timer);
             $('body').removeClass('naidapa-page-sidebar-empty');
             if (!$btn.length && page_toggle_html) {
                 $head.find('.page-title > .title-area').first().before(page_toggle_html);
             }
         } else {
-            // DEBOUNCED, and this matters: the panel is genuinely empty for the
-            // first frames of every route (the page shell renders before the
-            // ListSidebar / the form widgets are created), and this function runs on
-            // every mutation frame. Removing the button on a transient reading both
-            // hid it from pages that do have a sidebar AND destroyed Frappe's click
-            // binding with the element -- the copy we put back looked identical but
-            // was dead on touch layouts, where Frappe's own handler is the only
-            // thing that knows how to open the panel as an overlay. So: only act
-            // once the panel has STAYED empty.
-            const now = Date.now();
-            if (!naidapa_theme._page_sidebar_empty_since) {
-                naidapa_theme._page_sidebar_empty_since = now;
-                // Re-check on a timer as well: the MutationObserver only fires on
-                // DOM changes, so on a page that has settled there would be no
-                // further pass and the "stayed empty" verdict would never be
-                // reached (the button then stayed on workspace pages).
-                clearTimeout(naidapa_theme._page_sidebar_empty_timer);
-                naidapa_theme._page_sidebar_empty_timer = setTimeout(() => {
-                    naidapa_theme._page_sidebar_empty_since = 0;
-                    naidapa_theme.sync_page_sidebar_toggle_presence();
-                }, 1600);
-            } else if (now - naidapa_theme._page_sidebar_empty_since >= 1500) {
-                $('body').addClass('naidapa-page-sidebar-empty');
-                $btn.remove();
-            }
+            $('body').addClass('naidapa-page-sidebar-empty');
+            $btn.remove();
         }
 
         naidapa_theme.sync_page_sidebar_toggle_icon();
@@ -591,9 +670,15 @@
             // Re-assert WITHOUT persisting: this runs on every view render and must
             // not rewrite the user's stored choice.
             () => naidapa_theme.apply_sidebar_state(naidapa_theme.sidebar_is_open()),
+            // The page toggle's icon lives in Frappe's fetched icon sprite, which
+            // arrives after this script -- so re-assert on every pass (idempotent,
+            // and a no-op once the symbols are ours).
+            naidapa_theme.apply_panel_toggle_icon,
             // The page-level toggle is re-rendered with every page, and Frappe
-            // rewrites its icon on its own clicks, so re-derive the chevron from
-            // what is actually on screen on every pass (idempotent).
+            // rewrites its icon on its own clicks, so re-derive the state on every
+            // pass (idempotent). With the sprite symbols redefined both branches
+            // draw the same panel glyph, so this is now the FALLBACK that keeps
+            // Frappe's state-correct chevrons if the sprite ever is not ours.
             naidapa_theme.sync_page_sidebar_toggle_presence,
             // Re-assert the page toggle's bindings every pass: the button is
             // removed and re-created from stored HTML when the panel goes empty and
@@ -904,6 +989,21 @@
         naidapa_theme.setup();
         naidapa_theme.mutate_charts(); // Try patching immediately
         observer.observe(document.body, { childList: true, subtree: true });
+
+        // The icon sprite is FETCHED into `#all-symbols` by www/app.html after
+        // this script runs. The body observer above would only reach
+        // run_patches() on the next animation frame, which is long enough for the
+        // browser to paint the freshly inserted sprite once -- i.e. one frame of
+        // Frappe's chevron before our glyph replaced it, right at page load. A
+        // MutationObserver callback is delivered at the microtask checkpoint of
+        // the inserting task, BEFORE the next paint, so listening to the sprite
+        // host directly is what makes the swap invisible rather than nearly
+        // invisible. run_patches() keeps it as a safety net.
+        const sprite_host = document.getElementById('all-symbols');
+        if (sprite_host && window.MutationObserver) {
+            new MutationObserver(() => naidapa_theme.apply_panel_toggle_icon())
+                .observe(sprite_host, { childList: true });
+        }
     });
 
     // `page-change` covers the SPA route changes that do NOT re-run a view's

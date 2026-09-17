@@ -972,7 +972,28 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
        this theme hides), keep it collapsed even if the user's preference is
        "open" -- otherwise the toggle would reveal a 249px empty band. The toggle
        is removed on those pages too, so there is no control left pointing at it. */
-    body.naidapa-page-sidebar-empty .page-container .layout-main > .layout-side-section {
+    body.naidapa-page-sidebar-empty .page-container .layout-main > .layout-side-section,
+    /* SAME-FRAME backstop for the rule above, with no JS and no timer.
+       Measured 2026-09-16 on the Home workspace: the JS-only version above
+       relies on `naidapa-page-sidebar-empty`, which `sync_page_sidebar_toggle_presence()`
+       only adds after the panel has "stayed empty" for 1.5s of patch passes --
+       a race that a workspace's own progressively-loading widgets (onboarding
+       steps, shortcut cards, number cards, charts) can lose, leaving a visible
+       empty band with the toggle still showing. This rule needs no JS pass and
+       no timer: it fires the instant the DOM matches, on every repaint.
+       `.layout-side-section`'s only non-empty content on a Workspace page is
+       Frappe's own `.list-sidebar > .desk-sidebar` wrapper
+       (frappe/public/js/frappe/views/workspace/workspace.js:57-62) -- this
+       theme hides `.desk-sidebar` itself, so a panel whose only children are a
+       bare `.desk-sidebar`, a `.list-sidebar` containing nothing but one, and/or
+       Frappe's own `sr-only`/`sr-only-focusable` skip-link button
+       (frappe/public/js/frappe/ui/page.js:165-181, also appended directly to
+       this container) is, by definition, showing nothing visible. A REAL
+       form/list sidebar (Assigned To, Attachments, Tags, filters) puts other,
+       non-`sr-only` elements directly under `.list-sidebar` or under
+       `.layout-side-section` itself, so it never matches this selector and
+       un-collapses immediately once populated. */
+    body.naidapa-theme-active .layout-main > .layout-side-section:not(:has(> :not(.desk-sidebar):not(.list-sidebar):not(.sr-only):not(.sr-only-focusable))):not(:has(> .list-sidebar > :not(.desk-sidebar))) {
         flex-basis: 0 !important;
         max-width: 0 !important;
         min-width: 0 !important;
@@ -1004,7 +1025,8 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
 
     /* A barely-there 16px glyph with no hit area is hard to find, which is how
        the control got reported as missing. Give it a real 28px button box with a
-       hover state; the icon inside stays Frappe's own `<<` / `>>`. */
+       hover state; the icon inside is the panel glyph (see the
+       `.sidebar-toggle-placeholder` note below). */
     body.naidapa-theme-active .page-head .sidebar-toggle-btn {
         align-items: center;
         justify-content: center;
@@ -1037,11 +1059,15 @@ nav .app-nav .main-nav>li.active>a iconify-icon {
 
 /* Replace Frappe's "menu" placeholder (three bars) with the real state icon.
    Frappe renders `.sidebar-toggle-placeholder` (≡) normally and only swaps in
-   `.sidebar-toggle-icon` on hover; the latter is the `<<` / `>>` chevron pair we
-   want, so show it permanently and drop the placeholder.
-   Which chevron is drawn is JS's job (sync_page_sidebar_toggle_icon), matching
-   Frappe's own convention: `#es-line-sidebar-collapse` (>>) while the panel is
-   open, `#es-line-sidebar-expand` (<<) while it is closed.
+   `.sidebar-toggle-icon` on hover, so show the latter permanently and drop the
+   placeholder.
+   WHICH icon that is: the panel glyph, not Frappe's `<<` / `>>` chevrons. It is
+   drawn by redefining Frappe's two sprite symbols in JS
+   (`apply_panel_toggle_icon` in naidapa_theme.js -- it has to be the symbols, or
+   Frappe's own `update_sidebar_icon()` re-render restores the chevrons on every
+   click). Both symbols carry the same glyph, so the state no longer changes the
+   icon; `sync_page_sidebar_toggle_icon` still runs as the fallback that keeps
+   Frappe's state-correct chevrons if the sprite is ever not ours.
    NOTE the selector deliberately says `.sidebar-toggle-placeholder`, not
    `.sidebar-toggle-btn`: this is a hide, and the guard forbids hiding the
    button. */
