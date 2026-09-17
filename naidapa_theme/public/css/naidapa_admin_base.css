@@ -387,6 +387,15 @@ div>footer {
   top: 0;
   transition: all 0.3s ease;
   width: 100%;
+  /* Purely decorative (a 3% darken-on-hover wash) but full-size and
+     unlayered, so on hover it became the topmost paint over anything
+     nested inside a .btn -- remove-tag "x" icons (Table MultiSelect
+     pills, saved-filter chips), any icon-only button inside a bigger
+     .btn, etc. Real clicks (which hover before landing) hit this overlay
+     and got silently swallowed; a script-dispatched click (no hover)
+     bypassed it, which is why it looked like it "worked sometimes". This
+     is a global .btn rule, so the breakage was global too. */
+  pointer-events: none;
 }
 
 .btn.btn-info {

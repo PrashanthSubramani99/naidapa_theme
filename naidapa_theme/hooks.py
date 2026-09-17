@@ -119,7 +119,7 @@ required_apps = ["frappe", "erpnext"]
 # fix look like it "did nothing" in the browser: the CSS on disk was correct,
 # the server was still advertising the old ?v=, and the browser served its 12h
 # copy of the old stylesheet. There was no error anywhere to notice.
-NAIDAPA_ASSET_VERSION = "750ed3c88bec"
+NAIDAPA_ASSET_VERSION = "64135b469af1"
 app_include_css = [
     "/assets/naidapa_theme/vendor/simplebar/simplebar.css",
     f"/assets/naidapa_theme/css/naidapa_admin_base.css?v={NAIDAPA_ASSET_VERSION}",
