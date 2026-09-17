@@ -491,6 +491,34 @@ body.naidapa-sidebar-settled nav.vertical-sidebar {
     transition: width 0.3s ease;
 }
 
+/* Collapsing the semi-nav rail back down (leaving :hover) is INSTANT, not
+   animated, so it stops covering adjacent content the moment :hover
+   actually turns false, instead of continuing to paint over the same
+   space for another 0.3s while the width transitions back down.
+
+   NOTE: this alone does NOT fix the 2026-09-17 report (a list view's
+   saved-filter remove "x" doing nothing on click). That bug's real cause
+   is that the rail's HOVER-EXPANDED width (286px, see "Expand sidebar on
+   hover when collapsed" below) reaches ~220px past its own collapsed
+   edge (64px) into where nearby sidebar content already sits, and once
+   the cursor rests on that content it is *also* resting inside the
+   rail's current (expanded) box -- so :hover never turns false at all,
+   and this rule never gets a chance to apply. Confirmed live
+   (`nav.matches(':hover')` stayed `true` indefinitely with the cursor
+   sitting still on the target). A real fix needs either moving that
+   nearby content out of the rail's reach (attempted and reverted --
+   `.list-sidebar` turned out to have its own pre-existing 0-width /
+   overflow-rendered layout that broke differently when shifted) or
+   decoupling the hover TRIGGER zone from the rail's rendered width
+   (e.g. a fixed 64px trigger element inside it, expansion driven by
+   `nav:has(.trigger:hover)` instead of `nav:hover`) -- both out of scope
+   for this change. This rule is kept because it is still correct on its
+   own terms (no reason to paint a shrinking rail after hover truly
+   ends), just not sufficient by itself. */
+body.naidapa-sidebar-settled nav.vertical-sidebar.semi-nav:not(:hover) {
+    transition: none !important;
+}
+
 body.naidapa-theme-active nav.vertical-sidebar .app-logo,
 nav.vertical-sidebar .app-logo {
     margin-top: 16px !important;
