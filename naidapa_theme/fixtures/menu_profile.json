@@ -4,16 +4,18 @@
   "docstatus": 0,
   "doctype": "Menu Profile",
   "enabled": 1,
-  "modified": "2026-09-16 22:30:25.199491",
+  "modified": "2026-09-17 06:48:27.675797",
   "name": "System Admin Menu",
-  "primary_color": "#0f626a",
   "priority": 10,
   "profile_name": "System Admin Menu",
-  "role": "System Admin",
-  "secondary_color": "#626262",
-  "sidebar_logo": "/assets/naidapa_theme/images/naidapa-logo.png",
-  "sidebar_text": null,
-  "title": "Naidapa ERP",
+  "roles": [
+   {
+    "parent": "System Admin Menu",
+    "parentfield": "roles",
+    "parenttype": "Menu Profile",
+    "role": "System Admin"
+   }
+  ],
   "user": null,
   "workspace_order": [
    {
@@ -533,16 +535,18 @@
   "docstatus": 0,
   "doctype": "Menu Profile",
   "enabled": 1,
-  "modified": "2026-09-16 22:40:37.677253",
+  "modified": "2026-09-17 06:48:27.359663",
   "name": "System Manager Menu",
-  "primary_color": null,
   "priority": 5,
   "profile_name": "System Manager Menu",
-  "role": "System Manager",
-  "secondary_color": null,
-  "sidebar_logo": null,
-  "sidebar_text": null,
-  "title": null,
+  "roles": [
+   {
+    "parent": "System Manager Menu",
+    "parentfield": "roles",
+    "parenttype": "Menu Profile",
+    "role": "System Manager"
+   }
+  ],
   "user": null,
   "workspace_order": [
    {

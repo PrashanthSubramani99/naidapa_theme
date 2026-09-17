@@ -10,17 +10,10 @@
   "profile_name",
   "applies_to",
   "user",
-  "role",
+  "roles",
   "priority",
   "enabled",
   "column_break_scope",
-  "section_break_branding",
-  "primary_color",
-  "secondary_color",
-  "column_break_branding",
-  "sidebar_logo",
-  "title",
-  "sidebar_text",
   "section_break_workspace",
   "workspace_order"
  ],
@@ -52,12 +45,12 @@
   },
   {
    "depends_on": "eval:doc.applies_to=='Role'",
-   "fieldname": "role",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Role",
+   "description": "Applies if the current user has ANY of these roles.",
+   "fieldname": "roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Roles",
    "mandatory_depends_on": "eval:doc.applies_to=='Role'",
-   "options": "Role"
+   "options": "Menu Profile Role"
   },
   {
    "default": "0",
@@ -78,41 +71,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "collapsible": 1,
-   "fieldname": "section_break_branding",
-   "fieldtype": "Section Break",
-   "label": "Branding (desk only — login page stays global)"
-  },
-  {
-   "fieldname": "primary_color",
-   "fieldtype": "Color",
-   "label": "Primary Color"
-  },
-  {
-   "fieldname": "secondary_color",
-   "fieldtype": "Color",
-   "label": "Secondary Color"
-  },
-  {
-   "fieldname": "column_break_branding",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "sidebar_logo",
-   "fieldtype": "Attach",
-   "label": "Sidebar Logo"
-  },
-  {
-   "fieldname": "title",
-   "fieldtype": "Data",
-   "label": "Title"
-  },
-  {
-   "fieldname": "sidebar_text",
-   "fieldtype": "Data",
-   "label": "Sidebar Text"
-  },
-  {
    "fieldname": "section_break_workspace",
    "fieldtype": "Section Break",
    "label": "Menu"
@@ -125,7 +83,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-16 23:00:00.000000",
+ "modified": "2026-09-17 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Naidapa Theme",
  "name": "Menu Profile",

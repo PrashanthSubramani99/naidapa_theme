@@ -245,9 +245,16 @@ def get_active_menu_profile():
         return frappe.get_cached_doc("Menu Profile", user_profile)
 
     roles = literal_roles(user)
+    if not roles:
+        return None
+
     role_profiles = frappe.get_all(
         "Menu Profile",
-        filters={"applies_to": "Role", "role": ["in", roles], "enabled": 1},
+        filters=[
+            ["Menu Profile", "applies_to", "=", "Role"],
+            ["Menu Profile", "enabled", "=", 1],
+            ["Menu Profile Role", "role", "in", list(roles)],
+        ],
         fields=["name"],
         order_by="priority desc",
         limit=1,
@@ -304,20 +311,8 @@ def boot_session(bootinfo):
     # correct logo with the theme's own -- which is what made the Navbar Settings logo
     # look like it was being ignored in the desk while the login page obeyed it.
     try:
-        theme_settings = frappe.get_cached_doc("Theme Settings").as_dict()
+        bootinfo.theme_settings = frappe.get_cached_doc("Theme Settings").as_dict()
     except Exception:
-        theme_settings = {}
+        bootinfo.theme_settings = {}
 
-    # A matched Menu Profile's branding fields (only the ones it actually set)
-    # override the site-wide Theme Settings defaults for this user. Login-page
-    # fields (skin, login_tag, ...) are never overridden -- login happens before
-    # a user identity exists, so they must stay global.
-    profile = get_active_menu_profile()
-    if profile:
-        for field in ("primary_color", "secondary_color", "sidebar_logo", "title", "sidebar_text"):
-            value = profile.get(field)
-            if value:
-                theme_settings[field] = value
-
-    bootinfo.theme_settings = theme_settings
-    bootinfo.sidebar_logo = (profile and profile.get("sidebar_logo")) or get_logo()
+    bootinfo.sidebar_logo = get_logo()
